@@ -13,6 +13,14 @@ from discord_webhook import DiscordWebhook
 
 
 def get_team_demo_file_paths(team: str, folder: str, use_file_names: bool):
+    """
+    Gets all demos in which the given team played in
+
+    :param team: Team name to get demo files for
+    :param folder: File path to folder containing demos
+    :param use_file_names: Whether to use the names of the demo files to check if the team played in that demo
+    :return: A list containing strings with file paths to all demos for the given team
+    """
     file_paths = []
     if use_file_names:
         for file in os.listdir(folder):
@@ -23,6 +31,14 @@ def get_team_demo_file_paths(team: str, folder: str, use_file_names: bool):
 
 
 def parse_and_sort_by_map(files: list, file_folder: str):
+    """
+    Sorts the demo files into a dictionary based on map, and parses any unparsed demos into a .json file
+
+    :param files: A list of file paths to demo files
+    :param file_folder: The file path to the folder containing the demos
+    :return: A dictionary where keys are each map played in the demos listed, and values are a list of the demos for
+    each map
+    """
     maps = {}
     for file in files:
         # if demo is already parsed
@@ -53,6 +69,14 @@ def parse_and_sort_by_map(files: list, file_folder: str):
 
 
 def get_scouting_info(team: str, map_files: dict):
+    """
+    Gets opponents and position and grenade info for the first 12 seconds of rounds for many types of buys for T and CT
+
+    :param team: Name of team
+    :param map_files: Dictionary of maps and their demo files
+    :return: A list of opponents, position info for both sides for all types of buys 12 seconds into the rounds, and
+    grenade info for both sides for all types of buys for all grenades thrown before 12 seconds into the rounds
+    """
     position_info = {}
     grenades_info = {}
     opponents = {}
@@ -118,6 +142,16 @@ def get_scouting_info(team: str, map_files: dict):
 
 # map_position_info: {"t": {"Pistol": player_positions, "Full Eco": {}, "Semi Eco": {}, ...}, "ct": {}}
 def get_map_buy_pictures(map_name: str, map_position_info: dict, grenades_info: dict, players):
+    """
+    Saves plots with player and grenade positions 12 seconds into every round for each buy type for each side
+
+    :param map_name: Name of map
+    :param map_position_info: Dictionary with positions for each player on the given map 12 seconds into each round
+    :param grenades_info: Dictionary with grenade trajectories for grenades thrown in the first 12 seconds of every
+    round for the given team, on the given map
+    :param players: List of all players plotted so far. Used to keep colors on plots for players consistent
+    :return: Updated list of players plotted so far
+    """
     for side in map_position_info.keys():
         for buy in map_position_info[side].keys():
             figure, axes, players = get_single_plot(map_name, map_position_info[side][buy],
@@ -142,6 +176,15 @@ def get_map_buy_pictures(map_name: str, map_position_info: dict, grenades_info: 
 
 # player positions: {player1: [{"x": 0, "y": 0, "z": 0}, ...], player2: [], ...}
 def get_single_plot(map_name: str, player_positions: dict, grenades: dict, players: list):
+    """
+    Creates and saves a plot with player positions and grenade trjectories
+
+    :param map_name: Name of map
+    :param player_positions: Dictionary with a list of positions for each player
+    :param grenades: Dictionary with a list of grenades thrown for each player
+    :param players: List of players plotted so far. Used to keep colors on plots for players consistent
+    :return: The figure and axes for the plot, and an updated list of plotted players
+    """
     figure, axes = plot.plot_map(map_name=map_name, dark=False)
 
     total_dots = 0
@@ -199,6 +242,16 @@ def get_single_plot(map_name: str, player_positions: dict, grenades: dict, playe
 
 
 def to_pdf(team: str, map_name: str, opponents: list, images: dict, output_file: str):
+    """
+    Creates a pdf based on a html template, and list of map images
+
+    :param team: Name of team
+    :param map_name: Name of map
+    :param opponents: List of opponents team has played on map
+    :param images: List of file paths to images for the pdf
+    :param output_file: File path for pdf output
+    :return: Nothing
+    """
     template_loader = jinja2.FileSystemLoader('./')
     template_env = jinja2.Environment(loader=template_loader)
 
@@ -216,13 +269,23 @@ def to_pdf(team: str, map_name: str, opponents: list, images: dict, output_file:
         page_height = 270
 
     config = pdfkit.configuration(wkhtmltopdf="C:/Program Files/wkhtmltopdf/bin/wkhtmltopdf.exe")
-    pdfkit.from_string(output_text, output_file, configuration=config, options={"enable-local-file-access": "",
-                                                                                "page-height": page_height,
-                                                                                "page-width": 400},
+    pdfkit.from_string(output_text,
+                       output_file,
+                       configuration=config,
+                       options={"enable-local-file-access": "",
+                                "page-height": page_height,
+                                "page-width": 400},
                        css="map-template.css")
 
 
 def get_scouting_report(team: str, file_path: str):
+    """
+    Creates a pdf with player positions 12 seconds into every round, sorted by side and team buy type.
+
+    :param team: The team to create the pdf for
+    :param file_path: File path to folder with demos
+    :return: Nothing
+    """
     demo_files = get_team_demo_file_paths(team, file_path, True)
     sorted_json_files = parse_and_sort_by_map(demo_files, file_path)
     opponents, position_info, grenades_info = get_scouting_info(team, sorted_json_files)
@@ -253,6 +316,13 @@ def get_scouting_report(team: str, file_path: str):
 
 
 def get_team_map_win_info(team: str, file_path: str):
+    """
+    Gets Win-Loss, RWP, and OARWP information for a given team on each map they have played
+
+    :param team: Name of team
+    :param file_path: File path to folder with demos
+    :return: A list with strings containing the map info for each map
+    """
     demo_files = get_team_demo_file_paths(team, file_path, True)
     sorted_json_files = parse_and_sort_by_map(demo_files, file_path)
 
@@ -318,6 +388,13 @@ def get_team_map_win_info(team: str, file_path: str):
 
 
 def get_team_overall_rwp(team: str, file_path: str):
+    """
+    Gets round wins and losses for a team for demos in a folder
+
+    :param team: Name of team
+    :param file_path: File path to folder with demos
+    :return: List containing total round wins and total round losses for the given team in the demos file folder
+    """
     demo_files = get_team_demo_file_paths(team, file_path, True)
     sorted_json_files = parse_and_sort_by_map(demo_files, file_path)
 
@@ -339,6 +416,15 @@ def get_team_overall_rwp(team: str, file_path: str):
 
 
 def send_discord_message(team: str, webhook_url: str, file_path: str):
+    """
+    Send a discord message with the scouting report PDF, and team map stats for a given team for demos from a given
+    folder
+
+    :param team: Name of team
+    :param webhook_url: URL of webhook to send discord messages to
+    :param file_path: File path to folder with demos
+    :return: Nothing
+    """
     get_scouting_report(team, file_path)
 
     win_info = get_team_map_win_info(team, file_path)
@@ -360,5 +446,13 @@ def send_discord_message(team: str, webhook_url: str, file_path: str):
 
 # teams_and_webhooks: {"team1": "webhook1", "team2": "webhook2", ...}
 def send_many_discord_messages(teams_and_webhooks: dict, file_path: str):
+    """
+    Sends discord message with scouting info for multiple teams
+
+    :param teams_and_webhooks: Dictionary containing the team names as keys and webhooks to send the messages to as
+    values
+    :param file_path: File path to folder with demos
+    :return: Nothing
+    """
     for t, w in teams_and_webhooks.items():
         send_discord_message(t, w, file_path)
