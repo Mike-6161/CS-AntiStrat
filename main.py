@@ -248,7 +248,7 @@ def get_scouting_report(team: str, file_path: str):
 
         merger.append("./temp-pdfs/" + m + ".pdf")
 
-    merger.write(team + "_scouting.pdf")
+    merger.write("output/" + team + "_scouting.pdf")
     merger.close()
 
 
@@ -352,7 +352,7 @@ def send_discord_message(team: str, webhook_url: str, file_path: str):
 
     webhook = DiscordWebhook(url=webhook_url, content=info_message)
 
-    with open("./" + team + "_scouting.pdf", "rb") as f:
+    with open("./output/" + team + "_scouting.pdf", "rb") as f:
         webhook.add_file(file=f.read(), filename=team + ".pdf")
 
     webhook.execute()
@@ -362,3 +362,6 @@ def send_discord_message(team: str, webhook_url: str, file_path: str):
 def send_many_discord_messages(teams_and_webhooks: dict, file_path: str):
     for t, w in teams_and_webhooks.items():
         send_discord_message(t, w, file_path)
+
+
+send_discord_message("Nekomatas", "https://discord.com/api/webhooks/1134953604495720528/H3l80GgkamRbZHT6a2huHiEFCPASBjq3gm8Ugfv4rWyRrVNUgK_jHg7sUc5JlGgBfYt6", "C:/Users/Sjh47/DEMOS/CSC/Season 11")
