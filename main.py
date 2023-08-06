@@ -362,6 +362,3 @@ def send_discord_message(team: str, webhook_url: str, file_path: str):
 def send_many_discord_messages(teams_and_webhooks: dict, file_path: str):
     for t, w in teams_and_webhooks.items():
         send_discord_message(t, w, file_path)
-
-
-send_discord_message("Nekomatas", "https://discord.com/api/webhooks/1134953604495720528/H3l80GgkamRbZHT6a2huHiEFCPASBjq3gm8Ugfv4rWyRrVNUgK_jHg7sUc5JlGgBfYt6", "C:/Users/Sjh47/DEMOS/CSC/Season 11")
