@@ -248,7 +248,7 @@ def get_scouting_report(team: str, file_path: str):
 
         merger.append("./temp-pdfs/" + m + ".pdf")
 
-    merger.write(team + "_scouting.pdf")
+    merger.write("output/" + team + "_scouting.pdf")
     merger.close()
 
 
@@ -352,7 +352,7 @@ def send_discord_message(team: str, webhook_url: str, file_path: str):
 
     webhook = DiscordWebhook(url=webhook_url, content=info_message)
 
-    with open("./" + team + "_scouting.pdf", "rb") as f:
+    with open("./output/" + team + "_scouting.pdf", "rb") as f:
         webhook.add_file(file=f.read(), filename=team + ".pdf")
 
     webhook.execute()
