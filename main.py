@@ -294,7 +294,7 @@ def get_team_map_win_info(team: str, file_path: str):
             else:
                 raise Exception("Tie game")
 
-            opp_info = get_team_overall_RWP(opp_team, file_path)
+            opp_info = get_team_overall_rwp(opp_team, file_path)
             opp_round_wins += opp_info[0]
             opp_round_losses += opp_info[1]
 
@@ -317,7 +317,7 @@ def get_team_map_win_info(team: str, file_path: str):
     return team_win_info
 
 
-def get_team_overall_RWP(team: str, file_path: str):
+def get_team_overall_rwp(team: str, file_path: str):
     demo_files = get_team_demo_file_paths(team, file_path, True)
     sorted_json_files = parse_and_sort_by_map(demo_files, file_path)
 
@@ -337,37 +337,28 @@ def get_team_overall_RWP(team: str, file_path: str):
 
     return [round_wins, round_losses]
 
-# get_scouting_report("Nekomatas", "C:/Users/Sjh47/DEMOS/CSC/Season 11")
 
+def send_discord_message(team: str, webhook_url: str, file_path: str):
+    get_scouting_report(team, file_path)
 
-webhooks = {"Recruit": "https://discord.com/api/webhooks/1134953604495720528/H3l80GgkamRbZHT6a2huHiEFCPASBjq3gm8Ugfv4rWyRrVNUgK_jHg7sUc5JlGgBfYt6",
-            "Prospect": "https://discord.com/api/webhooks/1134953604495720528/H3l80GgkamRbZHT6a2huHiEFCPASBjq3gm8Ugfv4rWyRrVNUgK_jHg7sUc5JlGgBfYt6",
-            "Contender": "https://discord.com/api/webhooks/1134953604495720528/H3l80GgkamRbZHT6a2huHiEFCPASBjq3gm8Ugfv4rWyRrVNUgK_jHg7sUc5JlGgBfYt6",
-            "Challenger": "https://discord.com/api/webhooks/1134953604495720528/H3l80GgkamRbZHT6a2huHiEFCPASBjq3gm8Ugfv4rWyRrVNUgK_jHg7sUc5JlGgBfYt6",
-            "Elite": "https://discord.com/api/webhooks/1134953604495720528/H3l80GgkamRbZHT6a2huHiEFCPASBjq3gm8Ugfv4rWyRrVNUgK_jHg7sUc5JlGgBfYt6"}
+    win_info = get_team_map_win_info(team, file_path)
 
-opponents = {"Recruit": "Kittens",
-             "Prospect": "Nekomatas",
-             "Contender": "Nekomatas",
-             "Challenger": "Nekomatas",
-             "Elite": "Nekomatas"}
-
-for tier, url in webhooks.items():
-    get_scouting_report(opponents[tier], "C:/Users/Sjh47/DEMOS/CSC/Season 11")
-
-    win_info = get_team_map_win_info(opponents[tier], "C:/Users/Sjh47/DEMOS/CSC/Season 11")
-    info_message = opponents[tier] + " Scouting Report:```\n"
+    info_message = team + " Scouting Report:```\n"
     info_message = info_message + "Map\t\t\t\tW-L\tRWP \tOARWP\n"
+
     for m in win_info:
         info_message = info_message + m + "\n"
     info_message = info_message + "```"
 
-    webhook = DiscordWebhook(url=url, content=info_message)
-    with open("./" + opponents[tier] + "_scouting.pdf", "rb") as f:
-        webhook.add_file(file=f.read(), filename=opponents[tier] + ".pdf")
+    webhook = DiscordWebhook(url=webhook_url, content=info_message)
+
+    with open("./" + team + "_scouting.pdf", "rb") as f:
+        webhook.add_file(file=f.read(), filename=team + ".pdf")
 
     webhook.execute()
 
 
-print(get_team_map_win_info("Nekomatas", "C:/Users/Sjh47/DEMOS/CSC/Season 11"))
-
+# teams_and_webhooks: {"team1": "webhook1", "team2": "webhook2", ...}
+def send_many_discord_messages(teams_and_webhooks: dict, file_path: str):
+    for t, w in teams_and_webhooks.items():
+        send_discord_message(t, w, file_path)
