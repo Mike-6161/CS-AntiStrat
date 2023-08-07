@@ -24,8 +24,11 @@ def get_team_demo_file_paths(team: str, folder: str, use_file_names: bool):
     file_paths = []
     if use_file_names:
         for file in os.listdir(folder):
-            if file[(len(file) - 3):len(file)] == "dem" and team.replace(" ", "") in file:
-                file_paths.append(folder + '/' + file)
+            if (
+                file[(len(file) - 3) : len(file)] == "dem"
+                and team.replace(" ", "") in file
+            ):
+                file_paths.append(folder + "/" + file)
 
     return file_paths
 
@@ -42,9 +45,9 @@ def parse_and_sort_by_map(files: list, file_folder: str):
     maps = {}
     for file in files:
         # if demo is already parsed
-        print(file[0:(len(file) - 3)] + "json")
-        if os.path.isfile(file[0:(len(file) - 3)] + "json"):
-            f = open((file[0:(len(file) - 3)] + "json"))
+        print(file[0 : (len(file) - 3)] + "json")
+        if os.path.isfile(file[0 : (len(file) - 3)] + "json"):
+            f = open((file[0 : (len(file) - 3)] + "json"))
             data = json.load(f)
             f.close()
         # else parse the demo
@@ -55,15 +58,15 @@ def parse_and_sort_by_map(files: list, file_folder: str):
                 parse_rate=128,
                 buy_style="hltv",
                 parse_kill_frames=True,
-                outpath=file_folder
+                outpath=file_folder,
             )
 
             data = demo_parser.parse(clean=True)
 
         if data["mapName"] in maps.keys():
-            maps[data["mapName"]].append(file[0:(len(file) - 3)] + "json")
+            maps[data["mapName"]].append(file[0 : (len(file) - 3)] + "json")
         else:
-            maps[data["mapName"]] = [file[0:(len(file) - 3)] + "json"]
+            maps[data["mapName"]] = [file[0 : (len(file) - 3)] + "json"]
 
     return maps
 
@@ -82,10 +85,38 @@ def get_scouting_info(team: str, map_files: dict):
     opponents = {}
     for map_name in map_files.keys():
         map_opponents = []
-        positions = {"t": {"Pistol": {}, "Full Eco": {}, "Semi Eco": {}, "Semi Buy": {}, "Full Buy": {}},
-                     "ct": {"Pistol": {}, "Full Eco": {}, "Semi Eco": {}, "Semi Buy": {}, "Full Buy": {}}}
-        grenades = {"t": {"Pistol": {}, "Full Eco": {}, "Semi Eco": {}, "Semi Buy": {}, "Full Buy": {}},
-                    "ct": {"Pistol": {}, "Full Eco": {}, "Semi Eco": {}, "Semi Buy": {}, "Full Buy": {}}}
+        positions = {
+            "t": {
+                "Pistol": {},
+                "Full Eco": {},
+                "Semi Eco": {},
+                "Semi Buy": {},
+                "Full Buy": {},
+            },
+            "ct": {
+                "Pistol": {},
+                "Full Eco": {},
+                "Semi Eco": {},
+                "Semi Buy": {},
+                "Full Buy": {},
+            },
+        }
+        grenades = {
+            "t": {
+                "Pistol": {},
+                "Full Eco": {},
+                "Semi Eco": {},
+                "Semi Buy": {},
+                "Full Buy": {},
+            },
+            "ct": {
+                "Pistol": {},
+                "Full Eco": {},
+                "Semi Eco": {},
+                "Semi Buy": {},
+                "Full Buy": {},
+            },
+        }
 
         for match in map_files[map_name]:
             f = open(match)
@@ -119,7 +150,9 @@ def get_scouting_info(team: str, map_files: dict):
                             if p["name"] not in positions[side][buy].keys():
                                 positions[side][buy][p["name"]] = []
 
-                            positions[side][buy][p["name"]].append({"x": p["x"], "y": p["y"], "z": p["z"]})
+                            positions[side][buy][p["name"]].append(
+                                {"x": p["x"], "y": p["y"], "z": p["z"]}
+                            )
 
                         break
 
@@ -128,10 +161,17 @@ def get_scouting_info(team: str, map_files: dict):
                         if g["throwerName"] not in grenades[side][buy].keys():
                             grenades[side][buy][g["throwerName"]] = []
 
-                        grenades[side][buy][g["throwerName"]].append({"type": g["grenadeType"],
-                                                                      "X1": g["throwerX"], "Y1": g["throwerY"],
-                                                                      "Z1": g["throwerZ"], "X2": g["grenadeX"],
-                                                                      "Y2": g["grenadeY"], "Z2": g["grenadeZ"]})
+                        grenades[side][buy][g["throwerName"]].append(
+                            {
+                                "type": g["grenadeType"],
+                                "X1": g["throwerX"],
+                                "Y1": g["throwerY"],
+                                "Z1": g["throwerZ"],
+                                "X2": g["grenadeX"],
+                                "Y2": g["grenadeY"],
+                                "Z2": g["grenadeZ"],
+                            }
+                        )
 
         position_info[map_name] = positions
         grenades_info[map_name] = grenades
@@ -141,7 +181,9 @@ def get_scouting_info(team: str, map_files: dict):
 
 
 # map_position_info: {"t": {"Pistol": player_positions, "Full Eco": {}, "Semi Eco": {}, ...}, "ct": {}}
-def get_map_buy_pictures(map_name: str, map_position_info: dict, grenades_info: dict, players):
+def get_map_buy_pictures(
+    map_name: str, map_position_info: dict, grenades_info: dict, players
+):
     """
     Saves plots with player and grenade positions 12 seconds into every round for each buy type for each side
 
@@ -154,19 +196,29 @@ def get_map_buy_pictures(map_name: str, map_position_info: dict, grenades_info: 
     """
     for side in map_position_info.keys():
         for buy in map_position_info[side].keys():
-            figure, axes, players = get_single_plot(map_name, map_position_info[side][buy],
-                                                    grenades_info[side][buy], players)
+            figure, axes, players = get_single_plot(
+                map_name,
+                map_position_info[side][buy],
+                grenades_info[side][buy],
+                players,
+            )
 
-            plt.savefig("./temp-images/" + side + "_" + buy + ".png", bbox_inches='tight', dpi=300)
+            plt.savefig(
+                "./temp-images/" + side + "_" + buy + ".png",
+                bbox_inches="tight",
+                dpi=300,
+            )
 
             if side == "ct" and buy == "Full Buy":
                 handles, labels = plt.gca().get_legend_handles_labels()
                 by_label = dict(zip(labels, handles))
                 fig_legend = pylab.figure(figsize=(1.5, 1.3))
                 fig_legend.legend(by_label.values(), by_label.keys())
-                #pylab.figlegend(*axes.get_legend_handles_labels())
+                # pylab.figlegend(*axes.get_legend_handles_labels())
 
-                fig_legend.savefig("./temp-images/legend.png", bbox_inches='tight', dpi=300)
+                fig_legend.savefig(
+                    "./temp-images/legend.png", bbox_inches="tight", dpi=300
+                )
                 plt.close()
 
             plt.close()
@@ -175,7 +227,9 @@ def get_map_buy_pictures(map_name: str, map_position_info: dict, grenades_info: 
 
 
 # player positions: {player1: [{"x": 0, "y": 0, "z": 0}, ...], player2: [], ...}
-def get_single_plot(map_name: str, player_positions: dict, grenades: dict, players: list):
+def get_single_plot(
+    map_name: str, player_positions: dict, grenades: dict, players: list
+):
     """
     Creates and saves a plot with player positions and grenade trjectories
 
@@ -210,8 +264,12 @@ def get_single_plot(map_name: str, player_positions: dict, grenades: dict, playe
             if grenade["type"] == "Decoy Grenade":
                 continue
 
-            x1, y1, z1 = plot.position_transform_all(map_name, [grenade["X1"], grenade["Y1"], grenade["Z1"]])
-            x2, y2, z2 = plot.position_transform_all(map_name, [grenade["X2"], grenade["Y2"], grenade["Z2"]])
+            x1, y1, z1 = plot.position_transform_all(
+                map_name, [grenade["X1"], grenade["Y1"], grenade["Z1"]]
+            )
+            x2, y2, z2 = plot.position_transform_all(
+                map_name, [grenade["X2"], grenade["Y2"], grenade["Z2"]]
+            )
 
             # From awpy.visualization.plot.plot_nades()
             g_color = {
@@ -219,19 +277,30 @@ def get_single_plot(map_name: str, player_positions: dict, grenades: dict, playe
                 "Molotov": "red",
                 "Smoke Grenade": "gray",
                 "HE Grenade": "green",
-                "Flashbang": "gold"
+                "Flashbang": "gold",
             }[grenade["type"]]
 
-            axes.plot([x1, x2], [y1, y2], color=("C" + str(players.index(player))), alpha=0.1)
+            axes.plot(
+                [x1, x2], [y1, y2], color=("C" + str(players.index(player))), alpha=0.1
+            )
             axes.scatter(x2, y2, color=g_color, s=dot_size, alpha=0.6, marker="x")
 
     for player in player_positions.keys():
         if player not in players:
             players.append(player)
         for position in player_positions[player]:
-            x, y, z = plot.position_transform_all(map_name, [position["x"], position["y"], position["z"]])
+            x, y, z = plot.position_transform_all(
+                map_name, [position["x"], position["y"], position["z"]]
+            )
 
-            axes.scatter(x, y, color=("C" + str(players.index(player))), label=player, s=dot_size, zorder=100)
+            axes.scatter(
+                x,
+                y,
+                color=("C" + str(players.index(player))),
+                label=player,
+                s=dot_size,
+                zorder=100,
+            )
 
     axes.get_xaxis().set_visible(b=False)
     axes.get_yaxis().set_visible(b=False)
@@ -252,15 +321,20 @@ def to_pdf(team: str, map_name: str, opponents: list, images: dict, output_file:
     :param output_file: File path for pdf output
     :return: Nothing
     """
-    template_loader = jinja2.FileSystemLoader('./')
+    template_loader = jinja2.FileSystemLoader("./")
     template_env = jinja2.Environment(loader=template_loader)
 
     path = str(pathlib.Path(__file__).parent.resolve())
 
-    context = {"Team": team, "Map": map_name, "Opponents": opponents, "Date": datetime.datetime.now().date,
-               "Legend": (path + "/temp-images/legend.png")} | images
+    context = {
+        "Team": team,
+        "Map": map_name,
+        "Opponents": opponents,
+        "Date": datetime.datetime.now().date,
+        "Legend": (path + "/temp-images/legend.png"),
+    } | images
 
-    template = template_env.get_template('map-template.html')
+    template = template_env.get_template("map-template.html")
     output_text = template.render(context)
 
     if map_name in ("de_vertigo", "de_nuke"):
@@ -268,14 +342,20 @@ def to_pdf(team: str, map_name: str, opponents: list, images: dict, output_file:
     else:
         page_height = 270
 
-    config = pdfkit.configuration(wkhtmltopdf="C:/Program Files/wkhtmltopdf/bin/wkhtmltopdf.exe")
-    pdfkit.from_string(output_text,
-                       output_file,
-                       configuration=config,
-                       options={"enable-local-file-access": "",
-                                "page-height": page_height,
-                                "page-width": 400},
-                       css="map-template.css")
+    config = pdfkit.configuration(
+        wkhtmltopdf="C:/Program Files/wkhtmltopdf/bin/wkhtmltopdf.exe"
+    )
+    pdfkit.from_string(
+        output_text,
+        output_file,
+        configuration=config,
+        options={
+            "enable-local-file-access": "",
+            "page-height": page_height,
+            "page-width": 400,
+        },
+        css="map-template.css",
+    )
 
 
 def get_scouting_report(team: str, file_path: str):
@@ -292,11 +372,18 @@ def get_scouting_report(team: str, file_path: str):
 
     path = str(pathlib.Path(__file__).parent.resolve())
 
-    images = {"t_Pistol": path + "/temp-images/t_Pistol.png", "t_FullEco": path + "/temp-images/t_Full Eco.png",
-              "t_SemiEco": path + "/temp-images/t_Semi Eco.png", "t_SemiBuy": path + "/temp-images/t_Semi Buy.png",
-              "t_FullBuy": path + "/temp-images/t_Full Buy.png", "ct_Pistol": path + "/temp-images/ct_Pistol.png",
-              "ct_FullEco": path + "/temp-images/ct_Full Eco.png", "ct_SemiEco": path + "/temp-images/ct_Semi Eco.png",
-              "ct_SemiBuy": path + "/temp-images/ct_Semi Buy.png", "ct_FullBuy": path + "/temp-images/ct_Full Buy.png"}
+    images = {
+        "t_Pistol": path + "/temp-images/t_Pistol.png",
+        "t_FullEco": path + "/temp-images/t_Full Eco.png",
+        "t_SemiEco": path + "/temp-images/t_Semi Eco.png",
+        "t_SemiBuy": path + "/temp-images/t_Semi Buy.png",
+        "t_FullBuy": path + "/temp-images/t_Full Buy.png",
+        "ct_Pistol": path + "/temp-images/ct_Pistol.png",
+        "ct_FullEco": path + "/temp-images/ct_Full Eco.png",
+        "ct_SemiEco": path + "/temp-images/ct_Semi Eco.png",
+        "ct_SemiBuy": path + "/temp-images/ct_Semi Buy.png",
+        "ct_FullBuy": path + "/temp-images/ct_Full Buy.png",
+    }
 
     merger = pypdf.PdfMerger()
 
@@ -305,7 +392,7 @@ def get_scouting_report(team: str, file_path: str):
     for m in opponents.keys():
         players = get_map_buy_pictures(m, position_info[m], grenades_info[m], players)
 
-        opps = 'Opponents: ' + ', '.join([str(elem) for elem in opponents[m]])
+        opps = "Opponents: " + ", ".join([str(elem) for elem in opponents[m]])
 
         to_pdf(team, m, opps, images, "./temp-pdfs/" + m + ".pdf")
 
@@ -456,3 +543,10 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str):
     """
     for t, w in teams_and_webhooks.items():
         send_discord_message(t, w, file_path)
+
+
+if __name__ == "__main__":
+    send_discord_message(
+        "",
+        "https://discord.com/api/webhooks/1137866624398016522/yhZnV29Jk7rAP9YdTxvBDc3pY0k6gbx-YFDc6nVY_--e1bTYUxovJcJH0hrqjoYie4kV",
+    )
