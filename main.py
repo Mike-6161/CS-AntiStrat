@@ -242,6 +242,11 @@ def get_scouting_info(team: str, map_files: dict):
                             }
                         )
 
+            if side == "ct":
+                map_opponents[-1] += " (" + str(r["endCTScore"]) + "-" + str(r["endTScore"]) + ")"
+            else:
+                map_opponents[-1] += " (" + str(r["endTScore"]) + "-" + str(r["endCTScore"]) + ")"
+
         position_info[map_name] = positions
         grenades_info[map_name] = grenades
         opponents[map_name] = map_opponents
@@ -317,14 +322,14 @@ def get_single_plot(
 
     if map_name in ("de_vertigo", "de_nuke"):
         if total_dots > 50:
-            dot_size = 15
+            dot_size = 10
         else:
-            dot_size = 15
+            dot_size = 10
     else:
         if total_dots > 50:
-            dot_size = 60
+            dot_size = 40
         else:
-            dot_size = 60
+            dot_size = 40
 
     for player in grenades.keys():
         if player not in players:
@@ -333,12 +338,31 @@ def get_single_plot(
             if grenade["type"] == "Decoy Grenade":
                 continue
 
-            x1, y1, z1 = plot.position_transform_all(
-                map_name, [grenade["X1"], grenade["Y1"], grenade["Z1"]]
-            )
-            x2, y2, z2 = plot.position_transform_all(
-                map_name, [grenade["X2"], grenade["Y2"], grenade["Z2"]]
-            )
+            if map_name not in ("de_vertigo", "de_nuke"):
+                x1, y1, z1 = plot.position_transform_all(
+                    map_name, [grenade["X1"], grenade["Y1"], grenade["Z1"]]
+                )
+                x2, y2, z2 = plot.position_transform_all(
+                    map_name, [grenade["X2"], grenade["Y2"], grenade["Z2"]]
+                )
+            elif map_name == "de_vertigo":
+                # Don't plot a grenade that went off the map
+                if grenade["Z2"] < 10000:
+                    continue
+
+                x1, y1, z1 = plot.position_transform_all(
+                    map_name, [grenade["X1"], grenade["Y1"], grenade["Z2"]]
+                )
+                x2, y2, z2 = plot.position_transform_all(
+                    map_name, [grenade["X2"], grenade["Y2"], grenade["Z2"]]
+                )
+            else:
+                x1, y1, z1 = plot.position_transform_all(
+                    map_name, [grenade["X1"], grenade["Y1"], grenade["Z2"]]
+                )
+                x2, y2, z2 = plot.position_transform_all(
+                    map_name, [grenade["X2"], grenade["Y2"], grenade["Z2"]]
+                )
 
             # From awpy.visualization.plot.plot_nades()
             g_color = {
@@ -461,7 +485,7 @@ def get_scouting_report(team: str, file_path: str):
     for m in opponents.keys():
         players = get_map_buy_pictures(m, position_info[m], grenades_info[m], players)
 
-        opps = "Opponents: " + ", ".join([str(elem) for elem in opponents[m]])
+        opps = ", ".join([str(elem) for elem in opponents[m]])
 
         to_pdf(team, m, opps, images, "./temp-pdfs/" + m + ".pdf")
 
@@ -615,7 +639,14 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str):
 
 
 if __name__ == "__main__":
-    send_discord_message(
-        "",
-        "https://discord.com/api/webhooks/1137866624398016522/yhZnV29Jk7rAP9YdTxvBDc3pY0k6gbx-YFDc6nVY_--e1bTYUxovJcJH0hrqjoYie4kV",
+    # send_discord_message(
+    #     "",
+    #     "https://discord.com/api/webhooks/1137866624398016522/yhZnV29Jk7rAP9YdTxvBDc3pY0k6gbx-YFDc6nVY_--e1bTYUxovJcJH0hrqjoYie4kV",
+    #     "",
+    # )
+
+    get_scouting_report(
+        "Nekomatas",
+        "C:/Users/Sjh47/DEMOS/CSC/Season 11"
     )
+
