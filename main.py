@@ -639,14 +639,8 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str):
 
 
 if __name__ == "__main__":
-    # send_discord_message(
-    #     "",
-    #     "https://discord.com/api/webhooks/1137866624398016522/yhZnV29Jk7rAP9YdTxvBDc3pY0k6gbx-YFDc6nVY_--e1bTYUxovJcJH0hrqjoYie4kV",
-    #     "",
-    # )
-
-    get_scouting_report(
-        "Nekomatas",
-        "C:/Users/Sjh47/DEMOS/CSC/Season 11"
+    send_discord_message(
+        "",
+        "https://discord.com/api/webhooks/1137866624398016522/yhZnV29Jk7rAP9YdTxvBDc3pY0k6gbx-YFDc6nVY_--e1bTYUxovJcJH0hrqjoYie4kV",
+        "",
     )
-
