@@ -3,7 +3,6 @@ from awpy.visualization import plot
 import datetime
 import pdfkit
 import jinja2
-import os
 import json
 from matplotlib import pyplot as plt
 from matplotlib import pylab
@@ -16,6 +15,7 @@ import zipfile
 from typing import Tuple
 from boto3 import client as Client
 from dotenv import load_dotenv
+from python_graphql_client import GraphqlClient
 
 # Load environment file with region, key, and secret
 load_dotenv(".env")
@@ -305,7 +305,7 @@ def get_single_plot(
     map_name: str, player_positions: dict, grenades: dict, players: list
 ):
     """
-    Creates and saves a plot with player positions and grenade trjectories
+    Creates and saves a plot with player positions and grenade trajectories
 
     :param map_name: Name of map
     :param player_positions: Dictionary with a list of positions for each player
@@ -340,10 +340,10 @@ def get_single_plot(
 
             if map_name not in ("de_vertigo", "de_nuke"):
                 x1, y1, z1 = plot.position_transform_all(
-                    map_name, [grenade["X1"], grenade["Y1"], grenade["Z1"]]
+                    map_name, (grenade["X1"], grenade["Y1"], grenade["Z1"])
                 )
                 x2, y2, z2 = plot.position_transform_all(
-                    map_name, [grenade["X2"], grenade["Y2"], grenade["Z2"]]
+                    map_name, (grenade["X2"], grenade["Y2"], grenade["Z2"])
                 )
             elif map_name == "de_vertigo":
                 # Don't plot a grenade that went off the map
@@ -351,17 +351,17 @@ def get_single_plot(
                     continue
 
                 x1, y1, z1 = plot.position_transform_all(
-                    map_name, [grenade["X1"], grenade["Y1"], grenade["Z2"]]
+                    map_name, (grenade["X1"], grenade["Y1"], grenade["Z2"])
                 )
                 x2, y2, z2 = plot.position_transform_all(
-                    map_name, [grenade["X2"], grenade["Y2"], grenade["Z2"]]
+                    map_name, (grenade["X2"], grenade["Y2"], grenade["Z2"])
                 )
             else:
                 x1, y1, z1 = plot.position_transform_all(
-                    map_name, [grenade["X1"], grenade["Y1"], grenade["Z2"]]
+                    map_name, (grenade["X1"], grenade["Y1"], grenade["Z2"])
                 )
                 x2, y2, z2 = plot.position_transform_all(
-                    map_name, [grenade["X2"], grenade["Y2"], grenade["Z2"]]
+                    map_name, (grenade["X2"], grenade["Y2"], grenade["Z2"])
                 )
 
             # From awpy.visualization.plot.plot_nades()
@@ -383,7 +383,7 @@ def get_single_plot(
             players.append(player)
         for position in player_positions[player]:
             x, y, z = plot.position_transform_all(
-                map_name, [position["x"], position["y"], position["z"]]
+                map_name, (position["x"], position["y"], position["z"])
             )
 
             axes.scatter(
@@ -403,7 +403,7 @@ def get_single_plot(
     return figure, axes, players
 
 
-def to_pdf(team: str, map_name: str, opponents: list, images: dict, output_file: str):
+def to_pdf(team: str, map_name: str, opponents: str, images: dict, output_file: str):
     """
     Creates a pdf based on a html template, and list of map images
 
@@ -495,10 +495,11 @@ def get_scouting_report(team: str, file_path: str):
     merger.close()
 
 
-def get_team_map_win_info(team: str, file_path: str):
+def get_team_map_win_info(team: str, file_path: str, season: int):
     """
     Gets Win-Loss, RWP, and OARWP information for a given team on each map they have played
 
+    :param season: CSC Season num
     :param team: Name of team
     :param file_path: File path to folder with demos
     :return: A list with strings containing the map info for each map
@@ -544,7 +545,7 @@ def get_team_map_win_info(team: str, file_path: str):
             else:
                 raise Exception("Tie game")
 
-            opp_info = get_team_overall_rwp(opp_team, file_path)
+            opp_info = get_team_overall_rwp(opp_team, season)
             opp_round_wins += opp_info[0]
             opp_round_losses += opp_info[1]
 
@@ -567,35 +568,44 @@ def get_team_map_win_info(team: str, file_path: str):
     return team_win_info
 
 
-def get_team_overall_rwp(team: str, file_path: str):
+def get_team_overall_rwp(team: str, season: int):
     """
     Gets round wins and losses for a team for demos in a folder
 
+    :param season: CSC Season num
     :param team: Name of team
-    :param file_path: File path to folder with demos
     :return: List containing total round wins and total round losses for the given team in the demos file folder
     """
-    demo_files = get_team_demo_file_paths(team, file_path, True)
-    sorted_json_files = parse_and_sort_by_map(demo_files, file_path)
 
-    round_wins = 0
-    round_losses = 0
+    client = GraphqlClient(endpoint="https://stats.csconfederation.com/graphql")
 
-    for map in sorted_json_files.keys():
-        for match in sorted_json_files[map]:
-            file = open(match)
-            data = json.load(file)
-            file.close()
-            for r in data["gameRounds"]:
-                if r["winningTeam"] == team:
-                    round_wins += 1
-                else:
-                    round_losses += 1
+    query = """
+        query MyQuery {
+            findManyTeamStats(
+                where: {name: {equals: %s}, AND: {match: {season: {equals: %s}}}}
+            ) {
+                score
+                ctR
+                TR
+            }
+        }
+    """ % ("\"" + team + "\"", season)
 
-    return [round_wins, round_losses]
+    data = client.execute(query=query)["data"]["findManyTeamStats"]
+
+    wins = 0
+    rounds = 0
+
+    for match in data:
+        wins += match["score"]
+        rounds += match["ctR"] + match["TR"]
+
+    losses = rounds - wins
+
+    return [wins, losses]
 
 
-def send_discord_message(team: str, webhook_url: str, file_path: str):
+def send_discord_message(team: str, webhook_url: str, file_path: str, season: int):
     """
     Send a discord message with the scouting report PDF, and team map stats for a given team for demos from a given
     folder
@@ -607,7 +617,7 @@ def send_discord_message(team: str, webhook_url: str, file_path: str):
     """
     get_scouting_report(team, file_path)
 
-    win_info = get_team_map_win_info(team, file_path)
+    win_info = get_team_map_win_info(team, file_path, season)
 
     info_message = team + " Scouting Report:```\n"
     info_message = info_message + "Map\t\t\t\tW-L\tRWP \tOARWP\n"
@@ -625,17 +635,18 @@ def send_discord_message(team: str, webhook_url: str, file_path: str):
 
 
 # teams_and_webhooks: {"team1": "webhook1", "team2": "webhook2", ...}
-def send_many_discord_messages(teams_and_webhooks: dict, file_path: str):
+def send_many_discord_messages(teams_and_webhooks: dict, file_path: str, season: int):
     """
     Sends discord message with scouting info for multiple teams
 
+    :param season: CSC Season num
     :param teams_and_webhooks: Dictionary containing the team names as keys and webhooks to send the messages to as
     values
     :param file_path: File path to folder with demos
     :return: Nothing
     """
     for t, w in teams_and_webhooks.items():
-        send_discord_message(t, w, file_path)
+        send_discord_message(t, w, file_path, season)
 
 
 if __name__ == "__main__":
@@ -643,4 +654,5 @@ if __name__ == "__main__":
         "",
         "https://discord.com/api/webhooks/1137866624398016522/yhZnV29Jk7rAP9YdTxvBDc3pY0k6gbx-YFDc6nVY_--e1bTYUxovJcJH0hrqjoYie4kV",
         "",
+        11
     )
