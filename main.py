@@ -605,6 +605,141 @@ def get_team_overall_rwp(team: str, season: int):
     return [wins, losses]
 
 
+def get_team_players_map_stats(team: str, season: int) :
+    """
+    Queries core and stats APIs to get stats for currently rostered players on the given team
+
+    :param season: CSC Season number
+    :param team: Team name
+    :return: Formatted string to send to discord
+    """
+
+    client = GraphqlClient(endpoint="https://core.csconfederation.com/graphql")
+
+    query = """
+        query myquery	 {
+            team(teamName: %s){players{name, type}}
+        }
+        """ % ("\"" + team + "\"")
+
+    data = client.execute(query=query)["data"]["team"]["players"]
+
+    active_players = []
+
+    for player in data:
+        if "SIGNED" in player["type"]:
+            active_players.append(player["name"])
+
+    client = GraphqlClient(endpoint="https://stats.csconfederation.com/graphql")
+
+
+    player_data = {}
+
+    for player in active_players:
+        query = """
+               query MyQuery {
+                  findManyMatch(
+                     where: {AND: {season: {equals: %s} AND: {matchDay: {not: {equals: ""}}}}, matchStats: {some: {name: {equals: "%s"}}}}
+                  ) {
+                     mapName
+                     matchStats(where: {name: {equals: "%s"}, AND: {side: {equals: 4}}}) {
+                        rating
+                     }
+                  }
+                }
+               """ % (season, player, player)
+
+        data = client.execute(query=query)
+
+        player_data[player] = data["data"]["findManyMatch"]
+
+    maps = []
+    player_stats = {}
+
+    for player in player_data.keys():
+        player_stats[player] = {}
+        for match in player_data[player]:
+            if match["mapName"] not in player_stats[player].keys():
+                player_stats[player][match["mapName"]] = [0, 0]
+
+            player_stats[player][match["mapName"]][0] += match["matchStats"][0]["rating"]
+            player_stats[player][match["mapName"]][1] += 1
+
+            if match["mapName"] not in maps:
+                maps.append(match["mapName"])
+
+    info_message = "```Players        "
+    players_message = ""
+
+    for player in player_stats.keys():
+        players_message = players_message + player + (15 - len(player)) * " "
+        for map in maps:
+            if player == list(player_stats.keys())[0]:
+                info_message = info_message + map + (10 - len(map)) * " "
+
+            if map in player_stats[player].keys():
+                players_message = \
+                    players_message + \
+                    str(round((player_stats[player][map][0] / player_stats[player][map][1]), 2)) + \
+                    (10 - len(str(round(player_stats[player][map][0] / player_stats[player][map][1], 2)))) * " "
+            else:
+                players_message = players_message + "-         "
+
+        players_message = players_message + "\n"
+
+    info_message = info_message + "\n" + players_message + "```"
+
+    return info_message
+
+
+def get_team_players_awp_stats(team: str, season: int):
+    """
+    Queries core and stats APIs to get overall awp stats for currently rostered players on the given team
+
+    :param team: Team name
+    :param season: CSC Season
+    :return: Formatted string to send to discord
+    """
+
+    client = GraphqlClient(endpoint="https://core.csconfederation.com/graphql")
+
+    query = """
+            query myquery	 {
+                team(teamName: %s){players{name, type}}
+            }
+            """ % ("\"" + team + "\"")
+
+    data = client.execute(query=query)["data"]["team"]["players"]
+
+    active_players = []
+
+    for player in data:
+        if "SIGNED" in player["type"]:
+            active_players.append(player["name"])
+
+    client = GraphqlClient(endpoint="https://stats.csconfederation.com/graphql")
+
+    names = ""
+    awpr = ""
+
+    for player in active_players:
+        query = """
+        query MyQuery {
+            playerSeasonStats(name: "%s", season: %s, matchType: "Regulation") {
+                awpR
+            }
+        }""" % (player, season)
+
+        data = client.execute(query=query)
+
+        names = names + player + (12 - len(player)) * " "
+
+        awprstr = str(round(data["data"]["playerSeasonStats"]["awpR"], 2))
+        awpr = awpr + awprstr + (12 - len(awprstr)) * " "
+
+    return "```Awp Kills / Round: \n" + names + "\n" + awpr + "```"
+
+
 def send_discord_message(team: str, webhook_url: str, file_path: str, season: int):
     """
     Send a discord message with the scouting report PDF, and team map stats for a given team for demos from a given
@@ -625,6 +760,8 @@ def send_discord_message(team: str, webhook_url: str, file_path: str, season: in
     for m in win_info:
         info_message = info_message + m + "\n"
     info_message = info_message + "```"
+
+    info_message = info_message + get_team_players_map_stats(team, season) + get_team_players_awp_stats(team, season)
 
     webhook = DiscordWebhook(url=webhook_url, content=info_message)
 
@@ -652,7 +789,7 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str, season:
 if __name__ == "__main__":
     send_discord_message(
         "",
-        "https://discord.com/api/webhooks/1137866624398016522/yhZnV29Jk7rAP9YdTxvBDc3pY0k6gbx-YFDc6nVY_--e1bTYUxovJcJH0hrqjoYie4kV",
+        "",
         "",
         11
     )
