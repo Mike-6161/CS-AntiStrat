@@ -859,8 +859,71 @@ def get_team_opponent_stats(team: str, season: int, tier: str):
     return message
 
 
+def get_team_map_bans(team: str, season: int):
+    client = GraphqlClient(endpoint="https://core.csconfederation.com/graphql")
+
+    query = """
+    query myquery	 {
+        team(teamName: "%s") {
+            id
+        }
+    }
+    """ % team
+
+    team_id = client.execute(query=query)["data"]["team"]["id"]
+
+    query = """
+    query myquery	 {
+        matches(season: %s, teamId: "%s") {
+            lobby {
+                mapBans {
+                    team {
+                        name
+                        id
+                    }
+                    map
+                    number
+                }
+            }
+        }
+    } """ % (season, team_id)
+
+    matches = client.execute(query=query)["data"]["matches"]
+
+    ban_stats = {"de_inferno": [], "de_anubis": [], "de_ancient": [], "de_nuke": [],
+                 "de_overpass": [], "de_mirage": [], "de_vertigo": []}
+
+    for match in matches:
+        if match["lobby"] is None or match["lobby"]["mapBans"] == []:
+            continue
+
+        for ban in match["lobby"]["mapBans"]:
+            if ban["team"]["name"] == team:
+                ban_stats[ban["map"]].append(ban["number"])
+
+    message = "Map Ban Stats:\n```          # Banned  Avg Ban Position\n"
+
+    for map_name in ban_stats.keys():
+        if not ban_stats[map_name]:
+            continue
+
+        formatted_map_name = map_name
+        if "de_" in map_name:
+            formatted_map_name = map_name[3].upper() + map_name[4:len(map_name)]
+
+        message += formatted_map_name + " " * (10 - len(formatted_map_name))
+        message += str(len(ban_stats[map_name])) + " " * (10 - len(str(len(ban_stats[map_name]))))
+        avg = round(sum(ban_stats[map_name]) / len(ban_stats[map_name]), 2)
+        message += str(avg) + "\n"
+
+    message += "```"
+
+    return message
+
+
 def get_team_summary_stats(team: str, season: int, tier: str):
     message = get_team_opponent_stats(team, season, tier)
+    message += get_team_map_bans(team, season)
     message += get_team_players_map_stats(team, season)
     message += get_team_players_awp_stats(team, season)
 
@@ -914,8 +977,8 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str, season:
 
 
 if __name__ == "__main__":
-    team_name = "Muck Menaces"
-    season = 13
-    tier = "Challenger"
+    team_name = "Triggermen"
+    season_num = 13
+    tier_name = "Prospect"
 
-    print(get_team_summary_stats(team_name, season, tier))
+    print(get_team_summary_stats(team_name, season_num, tier_name))
