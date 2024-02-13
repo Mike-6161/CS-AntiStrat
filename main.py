@@ -22,7 +22,7 @@ load_dotenv(".env")
 
 
 def fetch_demos(
-    season: int, team: str, include_preseason: bool = False
+        season: int, team: str, include_preseason: bool = False
 ) -> Tuple[str, int]:
     """
     Fetches all demos for a team from a given season
@@ -63,7 +63,8 @@ def fetch_demos(
             )["Contents"]
         )
 
-    # Filter demos to only team demos and remove any directories (S3 includes the buckets for some reason in the results)
+    # Filter demos to only team demos and remove any directories (S3 includes the buckets for some reason in the
+    # results)
     demo_paths = [
         x["Key"] for x in all_demos if team in x["Key"] and ".dem" in x["Key"]
     ]
@@ -78,7 +79,7 @@ def fetch_demos(
             with zipped.open(zipped.filelist[0]) as f:
                 output.write(f.read())
 
-    return (dir, len(demo_paths))
+    return dir, len(demo_paths)
 
 
 def get_team_demo_file_paths(team: str, folder: str, use_file_names: bool):
@@ -94,8 +95,8 @@ def get_team_demo_file_paths(team: str, folder: str, use_file_names: bool):
     if use_file_names:
         for file in os.listdir(folder):
             if (
-                file[(len(file) - 3) : len(file)] == "dem"
-                and team.replace(" ", "") in file
+                    file[(len(file) - 3): len(file)] == "dem"
+                    and team.replace(" ", "") in file
             ):
                 file_paths.append(folder + "/" + file)
 
@@ -114,9 +115,9 @@ def parse_and_sort_by_map(files: list, file_folder: str):
     maps = {}
     for file in files:
         # if demo is already parsed
-        print(file[0 : (len(file) - 3)] + "json")
-        if os.path.isfile(file[0 : (len(file) - 3)] + "json"):
-            f = open((file[0 : (len(file) - 3)] + "json"))
+        print(file[0: (len(file) - 3)] + "json")
+        if os.path.isfile(file[0: (len(file) - 3)] + "json"):
+            f = open((file[0: (len(file) - 3)] + "json"))
             data = json.load(f)
             f.close()
         # else parse the demo
@@ -133,9 +134,9 @@ def parse_and_sort_by_map(files: list, file_folder: str):
             data = demo_parser.parse(clean=True)
 
         if data["mapName"] in maps.keys():
-            maps[data["mapName"]].append(file[0 : (len(file) - 3)] + "json")
+            maps[data["mapName"]].append(file[0: (len(file) - 3)] + "json")
         else:
-            maps[data["mapName"]] = [file[0 : (len(file) - 3)] + "json"]
+            maps[data["mapName"]] = [file[0: (len(file) - 3)] + "json"]
 
     return maps
 
@@ -186,6 +187,8 @@ def get_scouting_info(team: str, map_files: dict):
                 "Full Buy": {},
             },
         }
+
+        side = ""
 
         for match in map_files[map_name]:
             f = open(match)
@@ -256,7 +259,7 @@ def get_scouting_info(team: str, map_files: dict):
 
 # map_position_info: {"t": {"Pistol": player_positions, "Full Eco": {}, "Semi Eco": {}, ...}, "ct": {}}
 def get_map_buy_pictures(
-    map_name: str, map_position_info: dict, grenades_info: dict, players
+        map_name: str, map_position_info: dict, grenades_info: dict, players
 ):
     """
     Saves plots with player and grenade positions 12 seconds into every round for each buy type for each side
@@ -302,7 +305,7 @@ def get_map_buy_pictures(
 
 # player positions: {player1: [{"x": 0, "y": 0, "z": 0}, ...], player2: [], ...}
 def get_single_plot(
-    map_name: str, player_positions: dict, grenades: dict, players: list
+        map_name: str, player_positions: dict, grenades: dict, players: list
 ):
     """
     Creates and saves a plot with player positions and grenade trajectories
@@ -420,12 +423,12 @@ def to_pdf(team: str, map_name: str, opponents: str, images: dict, output_file: 
     path = str(pathlib.Path(__file__).parent.resolve())
 
     context = {
-        "Team": team,
-        "Map": map_name,
-        "Opponents": opponents,
-        "Date": datetime.datetime.now().date,
-        "Legend": (path + "/temp-images/legend.png"),
-    } | images
+                  "Team": team,
+                  "Map": map_name,
+                  "Opponents": opponents,
+                  "Date": datetime.datetime.now().date,
+                  "Legend": (path + "/temp-images/legend.png"),
+              } | images
 
     template = template_env.get_template("map-template.html")
     output_text = template.render(context)
@@ -605,7 +608,7 @@ def get_team_overall_rwp(team: str, season: int):
     return [wins, losses]
 
 
-def get_team_players_map_stats(team: str, season: int) :
+def get_team_players_map_stats(team: str, season: int):
     """
     Queries core and stats APIs to get stats for currently rostered players on the given team
 
@@ -632,14 +635,13 @@ def get_team_players_map_stats(team: str, season: int) :
 
     client = GraphqlClient(endpoint="https://stats.csconfederation.com/graphql")
 
-
     player_data = {}
 
     for player in active_players:
         query = """
                query MyQuery {
-                  findManyMatch(
-                     where: {AND: {season: {equals: %s} AND: {matchDay: {not: {equals: ""}}}}, matchStats: {some: {name: {equals: "%s"}}}}
+                  findManyMatch( 
+                     where: {matchType: {equals: Regulation}, season: {equals: %s}, matchDay: {not: {equals: ""}}, matchStats: {some: {name: {equals: "%s"}}}}
                   ) {
                      mapName
                      matchStats(where: {name: {equals: "%s"}, AND: {side: {equals: 4}}}) {
@@ -668,20 +670,24 @@ def get_team_players_map_stats(team: str, season: int) :
             if match["mapName"] not in maps:
                 maps.append(match["mapName"])
 
-    info_message = "```Players        "
+    info_message = "Player Map Stats:\n```               "
     players_message = ""
 
     for player in player_stats.keys():
         players_message = players_message + player + (15 - len(player)) * " "
-        for map in maps:
+        for map_name in maps:
             if player == list(player_stats.keys())[0]:
-                info_message = info_message + map + (10 - len(map)) * " "
+                if "de_" in map_name:
+                    formatted_map_name = map_name[3].upper() + map_name[4:len(map_name)]
 
-            if map in player_stats[player].keys():
+                info_message = info_message + formatted_map_name + (10 - len(formatted_map_name)) * " "
+
+            if map_name in player_stats[player].keys():
                 players_message = \
                     players_message + \
-                    str(round((player_stats[player][map][0] / player_stats[player][map][1]), 2)) + \
-                    (10 - len(str(round(player_stats[player][map][0] / player_stats[player][map][1], 2)))) * " "
+                    str(round((player_stats[player][map_name][0] / player_stats[player][map_name][1]), 2)) + \
+                    (10 - len(
+                        str(round(player_stats[player][map_name][0] / player_stats[player][map_name][1], 2)))) * " "
             else:
                 players_message = players_message + "-         "
 
@@ -737,7 +743,128 @@ def get_team_players_awp_stats(team: str, season: int):
         awprstr = str(round(data["data"]["playerSeasonStats"]["awpR"], 2))
         awpr = awpr + awprstr + (12 - len(awprstr)) * " "
 
-    return "```Awp Kills / Round: \n" + names + "\n" + awpr + "```"
+    return "Awp Kills / Round: \n```" + names + "\n" + awpr + "```"
+
+
+def get_team_opponent_stats(team: str, season: int, tier: str):
+    client = GraphqlClient(endpoint="https://stats.csconfederation.com/graphql")
+
+    query = """
+    query MyQuery {
+      findManyMatch(
+        where: {season: {equals: %s}, tier: {equals: %s}, matchDay: {not: {equals: ""}}, matchType: {equals: Regulation}}
+      ) {
+        teamStats {
+          name
+          score
+        }
+        mapName
+      }
+    } """ % (season, tier)
+
+    matches = client.execute(query=query)["data"]["findManyMatch"]
+
+    win_loss_stats = {}
+    team_map_opponents = {}
+
+    # Get each team's round wins and losses, and map wins and losses
+    for match in matches:
+        # Handle the first team
+        if match["teamStats"][0]["name"] not in win_loss_stats.keys():
+            win_loss_stats[match["teamStats"][0]["name"]] = {"wins": 0, "losses": 0, "round_wins": 0, "round_losses": 0}
+
+        win_loss_stats[match["teamStats"][0]["name"]]["round_wins"] += match["teamStats"][0]["score"]
+        win_loss_stats[match["teamStats"][0]["name"]]["round_losses"] += match["teamStats"][1]["score"]
+
+        if match["teamStats"][0]["score"] > match["teamStats"][1]["score"]:
+            win_loss_stats[match["teamStats"][0]["name"]]["wins"] += 1
+        else:
+            win_loss_stats[match["teamStats"][0]["name"]]["losses"] += 1
+
+        # Handle the second team
+        if match["teamStats"][1]["name"] not in win_loss_stats.keys():
+            win_loss_stats[match["teamStats"][1]["name"]] = {"wins": 0, "losses": 0, "round_wins": 0, "round_losses": 0}
+
+        win_loss_stats[match["teamStats"][1]["name"]]["round_wins"] += match["teamStats"][1]["score"]
+        win_loss_stats[match["teamStats"][1]["name"]]["round_losses"] += match["teamStats"][0]["score"]
+
+        if match["teamStats"][1]["score"] > match["teamStats"][0]["score"]:
+            win_loss_stats[match["teamStats"][1]["name"]]["wins"] += 1
+        else:
+            win_loss_stats[match["teamStats"][1]["name"]]["losses"] += 1
+
+        # Add the opponent to the list of opponents for the current map
+        if match["teamStats"][0]["name"] == team or match["teamStats"][1]["name"] == team:
+            if match ["mapName"] not in team_map_opponents.keys():
+                team_map_opponents[match["mapName"]] = {"opponents": [], "wins": 0, "losses": 0, "round_wins": 0, "round_losses": 0}
+
+            # Get the opponent of the team in question, if applicable
+            if match["teamStats"][0]["name"] == team:
+                team_map_opponents[match["mapName"]]["opponents"].append(match["teamStats"][1]["name"])
+
+                team_map_opponents[match["mapName"]]["round_wins"] += match["teamStats"][0]["score"]
+                team_map_opponents[match["mapName"]]["round_losses"] += match["teamStats"][1]["score"]
+
+                if match["teamStats"][0]["score"] > match["teamStats"][1]["score"]:
+                    team_map_opponents[match["mapName"]]["wins"] += 1
+                else:
+                    team_map_opponents[match["mapName"]]["losses"] += 1
+
+            if match["teamStats"][1]["name"] == team:
+                team_map_opponents[match["mapName"]]["opponents"].append(match["teamStats"][0]["name"])
+
+                team_map_opponents[match["mapName"]]["round_wins"] += match["teamStats"][1]["score"]
+                team_map_opponents[match["mapName"]]["round_losses"] += match["teamStats"][0]["score"]
+
+                if match["teamStats"][1]["score"] > match["teamStats"][0]["score"]:
+                    team_map_opponents[match["mapName"]]["wins"] += 1
+                else:
+                    team_map_opponents[match["mapName"]]["losses"] += 1
+
+    title = "**" + team + " (" + str(win_loss_stats[team]["wins"]) + "-" + str(win_loss_stats[team]["losses"]) + ", "
+    title += str(round(win_loss_stats[team]["round_wins"] / (win_loss_stats[team]["round_wins"] +
+                                                             win_loss_stats[team]["round_losses"]), 2)) + " RWP)**"
+
+    title += "\nTeam Map Stats: \n"
+
+    message = title + "```          Wins      Losses    RWP       Avg Opp Rwp\n"
+
+    for map_name in team_map_opponents.keys():
+        formatted_map_name = map_name
+        if "de_" in map_name:
+            formatted_map_name = map_name[3].upper() + map_name[4:len(map_name)]
+
+        message += formatted_map_name + " " * (10 - len(formatted_map_name))
+        message += str(team_map_opponents[map_name]["wins"]) + " " * (10 - len(str(team_map_opponents[map_name]["wins"])))
+        message += str(team_map_opponents[map_name]["losses"]) + " " * (10 - len(str(team_map_opponents[map_name]["losses"])))
+
+        rwp = round(team_map_opponents[map_name]["round_wins"] / (team_map_opponents[map_name]["round_wins"] +
+                                                                  team_map_opponents[map_name]["round_losses"]), 2)
+
+        message += str(rwp) + " " * (10 - len(str(rwp)))
+
+        avg_opp_round_wins = 0
+        avg_opp_round_losses = 0
+
+        for opponent in team_map_opponents[map_name]["opponents"]:
+            avg_opp_round_wins += win_loss_stats[opponent]["round_wins"]
+            avg_opp_round_losses += win_loss_stats[opponent]["round_losses"]
+
+        aorwp = round(avg_opp_round_wins / (avg_opp_round_losses + avg_opp_round_wins), 2)
+
+        message += str(aorwp) + " " * (10 - len(str(aorwp))) + "\n"
+
+    message += "```"
+
+    return message
+
+
+def get_team_summary_stats(team: str, season: int, tier: str):
+    message = get_team_opponent_stats(team, season, tier)
+    message += get_team_players_map_stats(team, season)
+    message += get_team_players_awp_stats(team, season)
+
+    return message
 
 
 def send_discord_message(team: str, webhook_url: str, file_path: str, season: int):
@@ -787,9 +914,8 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str, season:
 
 
 if __name__ == "__main__":
-    send_discord_message(
-        "",
-        "",
-        "",
-        11
-    )
+    team_name = "Muck Menaces"
+    season = 13
+    tier = "Challenger"
+
+    print(get_team_summary_stats(team_name, season, tier))
