@@ -14,6 +14,8 @@ import os
 import zipfile
 from typing import Tuple
 from boto3 import client as Client
+from botocore import UNSIGNED
+from botocore.client import Config
 from dotenv import load_dotenv
 from python_graphql_client import GraphqlClient
 
@@ -44,8 +46,7 @@ def fetch_demos(
         "s3",
         endpoint_url=f"https://{os.environ['SPACES_REGION']}.digitaloceanspaces.com",
         region_name=os.environ["SPACES_REGION"],
-        aws_access_key_id=os.environ["SPACES_KEY"],
-        aws_secret_access_key=os.environ["SPACES_SECRET"],
+        config=Config(signature_version=UNSIGNED)
     )
 
     # Get all match day demos
@@ -74,7 +75,7 @@ def fetch_demos(
 
         with (
             zipfile.ZipFile(io.BytesIO(file)) as zipped,
-            open(filename, "wb") as output,
+            open(filename.replace(".zip", ""), "wb") as output,
         ):
             with zipped.open(zipped.filelist[0]) as f:
                 output.write(f.read())
@@ -914,8 +915,9 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str, season:
 
 
 if __name__ == "__main__":
-    team_name = "Muck Menaces"
+    team_name = "Caracals"
     season = 13
-    tier = "Challenger"
+    tier = "Prospect"
 
+    #get_scouting_report("Tridents", "temp-demos/Tridents")
     print(get_team_summary_stats(team_name, season, tier))
