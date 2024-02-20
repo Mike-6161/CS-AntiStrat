@@ -18,6 +18,7 @@ from botocore import UNSIGNED
 from botocore.client import Config
 from dotenv import load_dotenv
 from python_graphql_client import GraphqlClient
+import argparse
 
 # Load environment file with region, key, and secret
 load_dotenv(".env")
@@ -977,10 +978,18 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str, season:
         send_discord_message(t, w, file_path, season)
 
 
-if __name__ == "__main__":
-    team_name = "Caracals"
+parser = argparse.ArgumentParser(prog="CSC Antistrat",
+                                 description="Grabs antistrat information for teams from CSC")
+
+parser.add_argument("-T", "--team")
+parser.add_argument("-s", "--season")
+parser.add_argument("-t", "--tier")
+args = parser.parse_args()
+if not args.team or not args.season or not args.tier:
+    team_name = "Alchemists"
     season = 13
     tier = "Prospect"
-
-    #get_scouting_report("Tridents", "temp-demos/Tridents")
     print(get_team_summary_stats(team_name, season, tier))
+else:
+    #get_scouting_report("Tridents", "temp-demos/Tridents")
+    print(get_team_summary_stats(args.team, args.season, args.tier))
