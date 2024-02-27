@@ -1,3 +1,4 @@
+import re
 from awpy.parser import DemoParser
 from awpy.visualization import plot
 import datetime
@@ -981,7 +982,7 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str, season:
 parser = argparse.ArgumentParser(prog="CSC Antistrat",
                                  description="Grabs antistrat information for teams from CSC")
 
-parser.add_argument("-T", "--team")
+parser.add_argument("-T", "--team", help="Written out team name. For teams with 2 words, just remove the space")
 parser.add_argument("-s", "--season")
 parser.add_argument("-t", "--tier")
 args = parser.parse_args()
@@ -992,4 +993,5 @@ if not args.team or not args.season or not args.tier:
     print(get_team_summary_stats(team_name, season, tier))
 else:
     #get_scouting_report("Tridents", "temp-demos/Tridents")
-    print(get_team_summary_stats(args.team, args.season, args.tier))
+    corrected_name = " ".join(re.findall('[A-Z][^A-Z]*', args.team))
+    print(get_team_summary_stats(corrected_name, args.season, args.tier))
