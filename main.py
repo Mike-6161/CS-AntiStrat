@@ -1,4 +1,3 @@
-import re
 from awpy.parser import DemoParser
 from awpy.visualization import plot
 import datetime
@@ -15,11 +14,8 @@ import os
 import zipfile
 from typing import Tuple
 from boto3 import client as Client
-from botocore import UNSIGNED
-from botocore.client import Config
 from dotenv import load_dotenv
 from python_graphql_client import GraphqlClient
-import argparse
 
 # Load environment file with region, key, and secret
 load_dotenv(".env")
@@ -48,7 +44,8 @@ def fetch_demos(
         "s3",
         endpoint_url=f"https://{os.environ['SPACES_REGION']}.digitaloceanspaces.com",
         region_name=os.environ["SPACES_REGION"],
-        config=Config(signature_version=UNSIGNED)
+        aws_access_key_id=os.environ["SPACES_KEY"],
+        aws_secret_access_key=os.environ["SPACES_SECRET"],
     )
 
     # Get all match day demos
@@ -77,7 +74,7 @@ def fetch_demos(
 
         with (
             zipfile.ZipFile(io.BytesIO(file)) as zipped,
-            open(filename.replace(".zip", ""), "wb") as output,
+            open(filename, "wb") as output,
         ):
             with zipped.open(zipped.filelist[0]) as f:
                 output.write(f.read())
@@ -902,9 +899,9 @@ def get_team_map_bans(team: str, season: int):
 
         for ban in match["lobby"]["mapBans"]:
             if ban["team"]["name"] == team:
-                ban_stats[ban["map"]].append(ban["number"])
+                ban_stats[ban["map"]].append((ban["number"] + 1) // 2)
 
-    message = "Map Ban Stats:\n```          # Banned  Avg Ban Position\n"
+    message = "Map Ban Stats:\n```          # Banned  Avg Ban Round\n"
 
     for map_name in ban_stats.keys():
         if not ban_stats[map_name]:
@@ -979,19 +976,9 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str, season:
         send_discord_message(t, w, file_path, season)
 
 
-parser = argparse.ArgumentParser(prog="CSC Antistrat",
-                                 description="Grabs antistrat information for teams from CSC")
+if __name__ == "__main__":
+    team_name = "Angus Aimers"
+    season_num = 13
+    tier_name = "Challenger"
 
-parser.add_argument("-T", "--team", help="Written out team name. For teams with 2 words, just remove the space")
-parser.add_argument("-s", "--season")
-parser.add_argument("-t", "--tier")
-args = parser.parse_args()
-if not args.team or not args.season or not args.tier:
-    team_name = "Alchemists"
-    season = 13
-    tier = "Prospect"
-    print(get_team_summary_stats(team_name, season, tier))
-else:
-    #get_scouting_report("Tridents", "temp-demos/Tridents")
-    corrected_name = " ".join(re.findall('[A-Z][^A-Z]*', args.team))
-    print(get_team_summary_stats(corrected_name, args.season, args.tier))
+    print(get_team_summary_stats(team_name, season_num, tier_name))
