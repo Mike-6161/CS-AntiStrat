@@ -1,5 +1,5 @@
-from awpy.parser import DemoParser
-from awpy.visualization import plot
+# from awpy.parser import DemoParser
+# from awpy.visualization import plot
 import datetime
 import pdfkit
 import jinja2
@@ -123,15 +123,15 @@ def parse_and_sort_by_map(files: list, file_folder: str):
         # else parse the demo
         else:
             print("Parsing")
-            demo_parser = DemoParser(
-                demofile=file,
-                parse_rate=128,
-                buy_style="hltv",
-                parse_kill_frames=True,
-                outpath=file_folder,
-            )
+            # demo_parser = DemoParser(
+            #     demofile=file,
+            #     parse_rate=128,
+            #     buy_style="hltv",
+            #     parse_kill_frames=True,
+            #     outpath=file_folder,
+            # )
 
-            data = demo_parser.parse(clean=True)
+            # data = demo_parser.parse(clean=True)
 
         if data["mapName"] in maps.keys():
             maps[data["mapName"]].append(file[0: (len(file) - 3)] + "json")
@@ -316,94 +316,94 @@ def get_single_plot(
     :param players: List of players plotted so far. Used to keep colors on plots for players consistent
     :return: The figure and axes for the plot, and an updated list of plotted players
     """
-    figure, axes = plot.plot_map(map_name=map_name, dark=False)
-
-    total_dots = 0
-
-    for key in player_positions.keys():
-        total_dots += len(player_positions[key])
-
-    if map_name in ("de_vertigo", "de_nuke"):
-        if total_dots > 50:
-            dot_size = 10
-        else:
-            dot_size = 10
-    else:
-        if total_dots > 50:
-            dot_size = 40
-        else:
-            dot_size = 40
-
-    for player in grenades.keys():
-        if player not in players:
-            players.append(player)
-        for grenade in grenades[player]:
-            if grenade["type"] == "Decoy Grenade":
-                continue
-
-            if map_name not in ("de_vertigo", "de_nuke"):
-                x1, y1, z1 = plot.position_transform_all(
-                    map_name, (grenade["X1"], grenade["Y1"], grenade["Z1"])
-                )
-                x2, y2, z2 = plot.position_transform_all(
-                    map_name, (grenade["X2"], grenade["Y2"], grenade["Z2"])
-                )
-            elif map_name == "de_vertigo":
-                # Don't plot a grenade that went off the map
-                if grenade["Z2"] < 10000:
-                    continue
-
-                x1, y1, z1 = plot.position_transform_all(
-                    map_name, (grenade["X1"], grenade["Y1"], grenade["Z2"])
-                )
-                x2, y2, z2 = plot.position_transform_all(
-                    map_name, (grenade["X2"], grenade["Y2"], grenade["Z2"])
-                )
-            else:
-                x1, y1, z1 = plot.position_transform_all(
-                    map_name, (grenade["X1"], grenade["Y1"], grenade["Z2"])
-                )
-                x2, y2, z2 = plot.position_transform_all(
-                    map_name, (grenade["X2"], grenade["Y2"], grenade["Z2"])
-                )
-
-            # From awpy.visualization.plot.plot_nades()
-            g_color = {
-                "Incendiary Grenade": "red",
-                "Molotov": "red",
-                "Smoke Grenade": "gray",
-                "HE Grenade": "green",
-                "Flashbang": "gold",
-            }[grenade["type"]]
-
-            axes.plot(
-                [x1, x2], [y1, y2], color=("C" + str(players.index(player))), alpha=0.1
-            )
-            axes.scatter(x2, y2, color=g_color, s=dot_size, alpha=0.6, marker="x")
-
-    for player in player_positions.keys():
-        if player not in players:
-            players.append(player)
-        for position in player_positions[player]:
-            x, y, z = plot.position_transform_all(
-                map_name, (position["x"], position["y"], position["z"])
-            )
-
-            axes.scatter(
-                x,
-                y,
-                color=("C" + str(players.index(player))),
-                label=player,
-                s=dot_size,
-                zorder=100,
-            )
-
-    axes.get_xaxis().set_visible(b=False)
-    axes.get_yaxis().set_visible(b=False)
-
-    figure.set_size_inches(10, 10)
-
-    return figure, axes, players
+    # figure, axes = plot.plot_map(map_name=map_name, dark=False)
+    #
+    # total_dots = 0
+    #
+    # for key in player_positions.keys():
+    #     total_dots += len(player_positions[key])
+    #
+    # if map_name in ("de_vertigo", "de_nuke"):
+    #     if total_dots > 50:
+    #         dot_size = 10
+    #     else:
+    #         dot_size = 10
+    # else:
+    #     if total_dots > 50:
+    #         dot_size = 40
+    #     else:
+    #         dot_size = 40
+    #
+    # for player in grenades.keys():
+    #     if player not in players:
+    #         players.append(player)
+    #     for grenade in grenades[player]:
+    #         if grenade["type"] == "Decoy Grenade":
+    #             continue
+    #
+    #         if map_name not in ("de_vertigo", "de_nuke"):
+    #             x1, y1, z1 = plot.position_transform_all(
+    #                 map_name, (grenade["X1"], grenade["Y1"], grenade["Z1"])
+    #             )
+    #             x2, y2, z2 = plot.position_transform_all(
+    #                 map_name, (grenade["X2"], grenade["Y2"], grenade["Z2"])
+    #             )
+    #         elif map_name == "de_vertigo":
+    #             # Don't plot a grenade that went off the map
+    #             if grenade["Z2"] < 10000:
+    #                 continue
+    #
+    #             x1, y1, z1 = plot.position_transform_all(
+    #                 map_name, (grenade["X1"], grenade["Y1"], grenade["Z2"])
+    #             )
+    #             x2, y2, z2 = plot.position_transform_all(
+    #                 map_name, (grenade["X2"], grenade["Y2"], grenade["Z2"])
+    #             )
+    #         else:
+    #             x1, y1, z1 = plot.position_transform_all(
+    #                 map_name, (grenade["X1"], grenade["Y1"], grenade["Z2"])
+    #             )
+    #             x2, y2, z2 = plot.position_transform_all(
+    #                 map_name, (grenade["X2"], grenade["Y2"], grenade["Z2"])
+    #             )
+    #
+    #         # From awpy.visualization.plot.plot_nades()
+    #         g_color = {
+    #             "Incendiary Grenade": "red",
+    #             "Molotov": "red",
+    #             "Smoke Grenade": "gray",
+    #             "HE Grenade": "green",
+    #             "Flashbang": "gold",
+    #         }[grenade["type"]]
+    #
+    #         axes.plot(
+    #             [x1, x2], [y1, y2], color=("C" + str(players.index(player))), alpha=0.1
+    #         )
+    #         axes.scatter(x2, y2, color=g_color, s=dot_size, alpha=0.6, marker="x")
+    #
+    # for player in player_positions.keys():
+    #     if player not in players:
+    #         players.append(player)
+    #     for position in player_positions[player]:
+    #         x, y, z = plot.position_transform_all(
+    #             map_name, (position["x"], position["y"], position["z"])
+    #         )
+    #
+    #         axes.scatter(
+    #             x,
+    #             y,
+    #             color=("C" + str(players.index(player))),
+    #             label=player,
+    #             s=dot_size,
+    #             zorder=100,
+    #         )
+    #
+    # axes.get_xaxis().set_visible(b=False)
+    # axes.get_yaxis().set_visible(b=False)
+    #
+    # figure.set_size_inches(10, 10)
+    #
+    # return figure, axes, players
 
 
 def to_pdf(team: str, map_name: str, opponents: str, images: dict, output_file: str):
@@ -977,8 +977,8 @@ def send_many_discord_messages(teams_and_webhooks: dict, file_path: str, season:
 
 
 if __name__ == "__main__":
-    team_name = "Angus Aimers"
+    team_name = "Assassins"
     season_num = 13
-    tier_name = "Challenger"
+    tier_name = "Contender"
 
     print(get_team_summary_stats(team_name, season_num, tier_name))
