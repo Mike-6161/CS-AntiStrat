@@ -278,12 +278,14 @@ def get_team_players_map_stats(team: str, season: int):
     return info_message
 
 
-def get_team_players_awp_stats(team: str, season: int):
+# Stats: {"apiName": "displayName", ...}
+def get_team_players_various_stats(team: str, season: int, stats: dict):
     """
     Queries core and stats APIs to get overall awp stats for currently rostered players on the given team
 
     :param team: Team name
     :param season: CSC Season
+    :param stats: Dictionary with api stat keys and display stat values {"apiName": "displayName", ...}
     :return: Formatted string to send to discord
     """
 
@@ -308,16 +310,24 @@ def get_team_players_awp_stats(team: str, season: int):
 
     client = GraphqlClient(endpoint="https://stats.csconfederation.com/graphql")
 
-    names = ""
-    awpr = ""
+    api_string = ", ".join(list(stats.keys()))
+
+    stats_names = "```" + " " * 14
+
+    for stat in stats.keys():
+        stats_names += stats[stat] + " " * (10 - len(stats[stat]))
+
+    stats_names += "\n"
+
+    players = ""
 
     for player in active_players:
         query = """
         query MyQuery {
             playerSeasonStats(name: "%s", season: %s, matchType: "Regulation") {
-                awpR
+                %s
             }
-        }""" % (player, season)
+        }""" % (player, season, api_string)
 
         data = client.execute(query=query)
 
@@ -327,12 +337,15 @@ def get_team_players_awp_stats(team: str, season: int):
         if player in sub_players:
             player += " (S)"
 
-        names = names + player + (12 - len(player)) * " "
+        players = players + player + (14 - len(player)) * " "
 
-        awprstr = str(round(data["data"]["playerSeasonStats"]["awpR"], 2))
-        awpr = awpr + awprstr + (12 - len(awprstr)) * " "
+        for stat in stats.keys():
+            temp = str(round(data["data"]["playerSeasonStats"][stat], 2))
+            players = players + temp + (10 - len(temp)) * " "
 
-    return "Awp Kills / Round: \n```" + names + "\n" + awpr + "```"
+        players = players + "\n"
+
+    return stats_names + players + "```"
 
 
 def get_team_summary_stats(franchise: str, season: int, tier: str):
@@ -375,14 +388,73 @@ def get_team_summary_stats(franchise: str, season: int, tier: str):
     message = get_team_opponent_stats(team, season, tier)
     message += get_team_map_bans(team, season)
     message += get_team_players_map_stats(team, season)
-    message += get_team_players_awp_stats(team, season)
+    message += "Awp Stats: \n"
+    message += get_team_players_various_stats(team, season, {"awpR": "Awp/r", "savesR": "Saves/r"})
 
     message += "*Map and player stats are pulled from the season given, roster information is current from core.*"
 
     return message
 
 
+def get_team_advanced_summary_stats(franchise: str, season: int, tier: str):
+    franchise = franchise.upper()
+    if franchise == "DB":
+        franchise = "dB"
+
+    tier = tier[0:1].upper() + tier[1:].lower()
+
+    # Get team name from franchise name and tier
+    client = GraphqlClient(endpoint="https://core.csconfederation.com/graphql")
+
+    query = """
+        query myquery {
+            franchises(active: true) {
+                teams {
+                    tier {
+                        name
+                    }
+                    name
+                }
+                prefix
+            }
+        }
+        """
+
+    franchises = client.execute(query=query)["data"]["franchises"]
+
+    team = ""
+
+    for f in franchises:
+        if f["prefix"] == franchise:
+            for t in f["teams"]:
+                if t["tier"]["name"] == tier:
+                    team = t["name"]
+
+    if team == "":
+        return "Invalid Team and / or Tier Name"
+
+    message = get_team_opponent_stats(team, season, tier)
+    message += get_team_map_bans(team, season)
+    message += get_team_players_map_stats(team, season)
+    message += "Fragging Stats: \n"
+    message += get_team_players_various_stats(team, season, {"rating": "Rating", "adr": "ADR", "kast": "KAST", "hs": "HS%", "tradesR": "Trades/r", "multiR": "Multi/r", "adp": "ADP"})
+    message += "Entry Stats: \n"
+    message += get_team_players_various_stats(team, season, {"odaR": "ODA/r", "odr": "ODR", "tRatio": "TRatio"})
+    message += "Utility Stats: \n"
+    message += get_team_players_various_stats(team, season, {"util": "Util", "ef": "EF", "fAssists": "FAss", "utilDmg": "UD"})
+
+    message_2 = "Awp Stats: \n"
+    message_2 += get_team_players_various_stats(team, season, {"awpR": "Awp/r", "savesR": "Saves/r", "saveRate": "Save Rate"})
+    message_2 += "Clutch Stats: \n"
+    message_2 += get_team_players_various_stats(team, season, {"clutchR": "Clutch/r", "cl_1": "1v1", "cl_2": "1v2", "cl_3": "1v3", "cl_4": "1v4", "cl_5": "1v5"})
+
+    message_2 += "*Map and player stats are pulled from the season given, roster information is current from core.*"
+
+    return (message, message_2)
+
+
 if __name__ == "__main__":
+
     load_dotenv()
 
     intents = discord.Intents.default()
@@ -403,6 +475,18 @@ if __name__ == "__main__":
 
         try:
             await(ctx.send(get_team_summary_stats(franchise, int(season), tier)))
+        except KeyError:
+            await(ctx.send("Invalid Franchise Tricode / Team Name / Season (or no stats for given season yet)."))
+
+
+    @bot.command()
+    async def scoutadv(ctx, franchise, tier, season):
+        await(ctx.send("Generating scouting report for: **" + franchise.upper() + " " + tier[0:1].upper() + tier[1:].lower() + " (Season: " + season + ")**..."))
+
+        try:
+            (message, message_2) = get_team_advanced_summary_stats(franchise, int(season), tier)
+            await(ctx.send(message))
+            await(ctx.send(message_2))
         except KeyError:
             await(ctx.send("Invalid Franchise Tricode / Team Name / Season (or no stats for given season yet)."))
 
