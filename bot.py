@@ -1,8 +1,10 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 from python_graphql_client import GraphqlClient
 from dotenv import load_dotenv
 import os
+import asyncio
 
 
 def get_team_opponent_stats(team: str, season: int, tier: str):
@@ -30,19 +32,29 @@ def get_team_opponent_stats(team: str, season: int, tier: str):
     for match in matches:
         # Handle the first team
         if match["teamStats"][0]["name"] not in win_loss_stats.keys():
-            win_loss_stats[match["teamStats"][0]["name"]] = {"wins": 0, "losses": 0, "round_wins": 0, "round_losses": 0}
+            win_loss_stats[match["teamStats"][0]["name"]] = {"wins": 0, "losses": 0, "easy_wins": 0, "hard_losses": 0, "close": 0, "round_wins": 0, "round_losses": 0}
 
         win_loss_stats[match["teamStats"][0]["name"]]["round_wins"] += match["teamStats"][0]["score"]
         win_loss_stats[match["teamStats"][0]["name"]]["round_losses"] += match["teamStats"][1]["score"]
 
         if match["teamStats"][0]["score"] > match["teamStats"][1]["score"]:
             win_loss_stats[match["teamStats"][0]["name"]]["wins"] += 1
+
+            if match["teamStats"][1]["score"] >= 10:
+                win_loss_stats[match["teamStats"][0]["name"]]["close"] += 1
+            else:
+                win_loss_stats[match["teamStats"][0]["name"]]["easy_wins"] += 1
         else:
             win_loss_stats[match["teamStats"][0]["name"]]["losses"] += 1
 
+            if match["teamStats"][0]["score"] >= 10:
+                win_loss_stats[match["teamStats"][0]["name"]]["close"] += 1
+            else:
+                win_loss_stats[match["teamStats"][0]["name"]]["hard_losses"] += 1
+
         # Handle the second team
         if match["teamStats"][1]["name"] not in win_loss_stats.keys():
-            win_loss_stats[match["teamStats"][1]["name"]] = {"wins": 0, "losses": 0, "round_wins": 0, "round_losses": 0}
+            win_loss_stats[match["teamStats"][1]["name"]] = {"wins": 0, "losses": 0, "easy_wins": 0, "hard_losses": 0, "close": 0, "round_wins": 0, "round_losses": 0}
 
         win_loss_stats[match["teamStats"][1]["name"]]["round_wins"] += match["teamStats"][1]["score"]
         win_loss_stats[match["teamStats"][1]["name"]]["round_losses"] += match["teamStats"][0]["score"]
@@ -80,13 +92,15 @@ def get_team_opponent_stats(team: str, season: int, tier: str):
                 else:
                     team_map_opponents[match["mapName"]]["losses"] += 1
 
-    title = "**" + team + " (" + str(win_loss_stats[team]["wins"]) + "-" + str(win_loss_stats[team]["losses"]) + ", "
+    title = "## " + team + "\n"
+    title += "**" + str(win_loss_stats[team]["wins"]) + "-" + str(win_loss_stats[team]["losses"]) + "**    "\
+             "*" + str(win_loss_stats[team]["easy_wins"]) + "-" + str(win_loss_stats[team]["close"]) + "-" + str(win_loss_stats[team]["hard_losses"]) + "*      "
     title += str(round(win_loss_stats[team]["round_wins"] / (win_loss_stats[team]["round_wins"] +
-                                                             win_loss_stats[team]["round_losses"]), 2)) + " RWP)**"
+                                                             win_loss_stats[team]["round_losses"]), 2)) + " RWP"
 
-    title += "\nTeam Map Stats: \n"
+    title += "\n```Team Map Stats: \n"
 
-    message = title + "```          Wins      Losses    RWP       Avg Opp Rwp\n"
+    message = title + "          Wins      Losses    RWP       Avg Opp Rwp\n"
 
     for map_name in team_map_opponents.keys():
         formatted_map_name = map_name
@@ -112,8 +126,6 @@ def get_team_opponent_stats(team: str, season: int, tier: str):
         aorwp = round(avg_opp_round_wins / (avg_opp_round_losses + avg_opp_round_wins), 2)
 
         message += str(aorwp) + " " * (10 - len(str(aorwp))) + "\n"
-
-    message += "```"
 
     return message
 
@@ -162,7 +174,7 @@ def get_team_map_bans(team: str, season: int):
 
                 ban_stats[ban["map"]].append((ban["number"] + 1) // 2)
 
-    message = "Map Ban Stats:\n```          # Banned  Avg Ban Round\n"
+    message = "\nMap Ban Stats:\n          # Banned  Avg Ban Round\n"
 
     for map_name in ban_stats.keys():
         if not ban_stats[map_name]:
@@ -176,8 +188,6 @@ def get_team_map_bans(team: str, season: int):
         message += str(len(ban_stats[map_name])) + " " * (10 - len(str(len(ban_stats[map_name]))))
         avg = round(sum(ban_stats[map_name]) / len(ban_stats[map_name]), 2)
         message += str(avg) + "\n"
-
-    message += "```"
 
     return message
 
@@ -247,7 +257,7 @@ def get_team_players_map_stats(team: str, season: int):
             if match["mapName"] not in maps:
                 maps.append(match["mapName"])
 
-    info_message = "Player Map Stats:\n```               "
+    info_message = "\nPlayer Map Stats:\n               "
     players_message = ""
 
     for player in player_stats.keys():
@@ -273,7 +283,7 @@ def get_team_players_map_stats(team: str, season: int):
 
         players_message = players_message + "\n"
 
-    info_message = info_message + "\n" + players_message + "```"
+    info_message = info_message + "\n" + players_message
 
     return info_message
 
@@ -312,7 +322,7 @@ def get_team_players_various_stats(team: str, season: int, stats: dict):
 
     api_string = ", ".join(list(stats.keys()))
 
-    stats_names = "```" + " " * 14
+    stats_names = " " * 14
 
     for stat in stats.keys():
         stats_names += stats[stat] + " " * (10 - len(stats[stat]))
@@ -388,10 +398,10 @@ def get_team_summary_stats(franchise: str, season: int, tier: str):
     message = get_team_opponent_stats(team, season, tier)
     message += get_team_map_bans(team, season)
     message += get_team_players_map_stats(team, season)
-    message += "Awp Stats: \n"
-    message += get_team_players_various_stats(team, season, {"awpR": "Awp/r", "savesR": "Saves/r"})
+    message += "\nMisc Stats: \n"
+    message += get_team_players_various_stats(team, season, {"ef": "EF", "fAssists": "FAss", "util": "Util", "awpR": "Awp/r", "savesR": "Saves/r", "odr": "ODR", "odaR": "ODA/r"})
 
-    message += "*Map and player stats are pulled from the season given, roster information is current from core.*"
+    message += f"\n-# All stats are from season {season}, roster information is current from core."
 
     return message
 
@@ -444,13 +454,16 @@ def get_team_advanced_summary_stats(franchise: str, season: int, tier: str):
     message += get_team_players_various_stats(team, season, {"util": "Util", "ef": "EF", "fAssists": "FAss", "utilDmg": "UD"})
 
     message_2 = "Awp Stats: \n"
-    message_2 += get_team_players_various_stats(team, season, {"awpR": "Awp/r", "savesR": "Saves/r", "saveRate": "Save Rate"})
+    message_2 += get_team_players_various_stats(team, season, {"awpR": "Awp/r", "savesR": "Saves/r", "saveRate": "SRate"})
     message_2 += "Clutch Stats: \n"
     message_2 += get_team_players_various_stats(team, season, {"clutchR": "Clutch/r", "cl_1": "1v1", "cl_2": "1v2", "cl_3": "1v3", "cl_4": "1v4", "cl_5": "1v5"})
 
     message_2 += "*Map and player stats are pulled from the season given, roster information is current from core.*"
 
     return (message, message_2)
+
+# def get_team_match_history(franchise: str, season: int, tier: str):
+
 
 
 if __name__ == "__main__":
@@ -464,37 +477,65 @@ if __name__ == "__main__":
 
     token = os.getenv("BOT_TOKEN")
 
+    # Get franchise prefixes
+    client = GraphqlClient(endpoint="https://core.csconfederation.com/graphql")
+
+    query = """
+            query myquery {
+                franchises(active: true) {
+                    prefix
+                }
+            }
+            """
+
+    franchises = client.execute(query=query)["data"]["franchises"]
+
+    franchise_choices = []
+
+    for f in franchises:
+        franchise_choices.append(app_commands.Choice(name=f['prefix'], value=f['prefix']))
+
     @bot.event
     async def on_ready():
-        await bot.change_presence(activity=discord.Game('!scout'))
-
-
-    @bot.command()
-    async def scout(ctx, franchise, tier, season):
-        await(ctx.send("Generating scouting report for: **" + franchise.upper() + " " + tier[0:1].upper() + tier[1:].lower() + " (Season: " + season + ")**..."))
+        print("Bot Started")
+        await bot.change_presence(activity=discord.Game('/scout'))
 
         try:
-            await(ctx.send(get_team_summary_stats(franchise, int(season), tier)))
-        except KeyError:
-            await(ctx.send("Invalid Franchise Tricode / Team Name / Season (or no stats for given season yet)."))
+            synced = await bot.tree.sync()
+            print(f"Synced {len(synced)} command(s)")
+        except Exception as e:
+            print(e)
+
+    @bot.tree.command(name="scout", description="Get team / players stats for a team.")
+    @app_commands.choices(franchise=franchise_choices)
+    @app_commands.choices(tier=[
+        app_commands.Choice(name="Recruit", value="Recruit"),
+        app_commands.Choice(name="Prospect", value="Prospect"),
+        app_commands.Choice(name="Contender", value="Contender"),
+        app_commands.Choice(name="Challenger", value="Challenger"),
+        app_commands.Choice(name="Elite", value="Elite"),
+        app_commands.Choice(name="Premier", value="Premier")
+    ])
+    async def scout(interaction: discord.Interaction, franchise: str, tier: str):
+
+        await interaction.response.defer()
+        await interaction.followup.send(get_team_summary_stats(franchise, int(14), tier))
 
 
-    @bot.command()
-    async def scoutadv(ctx, franchise, tier, season):
-        await(ctx.send("Generating scouting report for: **" + franchise.upper() + " " + tier[0:1].upper() + tier[1:].lower() + " (Season: " + season + ")**..."))
-
-        try:
-            (message, message_2) = get_team_advanced_summary_stats(franchise, int(season), tier)
-            await(ctx.send(message))
-            await(ctx.send(message_2))
-        except KeyError:
-            await(ctx.send("Invalid Franchise Tricode / Team Name / Season (or no stats for given season yet)."))
-
-
-    @scout.error
-    async def scout_error(ctx, error):
-        if isinstance(error, commands.MissingRequiredArgument):
-            await(ctx.send("**Proper Command Syntax:** `!scout franchise tier season` (Ex: `!scout COW Challenger 13`)\n*Map and player stats are pulled from the season given, roster information is current from core.* **Current season is 14**"))
+    # @bot.tree.command(name="matches", description="Get team match history.")
+    # @app_commands.choices(franchise=franchise_choices)
+    # @app_commands.choices(tier=[
+    #     app_commands.Choice(name="Recruit", value="Recruit"),
+    #     app_commands.Choice(name="Prospect", value="Prospect"),
+    #     app_commands.Choice(name="Contender", value="Contender"),
+    #     app_commands.Choice(name="Challenger", value="Challenger"),
+    #     app_commands.Choice(name="Elite", value="Elite"),
+    #     app_commands.Choice(name="Premier", value="Premier")
+    # ])
+    # async def scout(interaction: discord.Interaction, franchise: str, tier: str):
+    #
+    #     await interaction.response.defer()
+    #     await interaction.followup.send(get_team_summary_stats(franchise, int(14), tier))
 
     bot.run(token)
 
