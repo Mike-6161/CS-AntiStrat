@@ -5,6 +5,8 @@ from python_graphql_client import GraphqlClient
 from dotenv import load_dotenv
 import os
 import asyncio
+import time
+import datetime
 
 
 def get_team_opponent_stats(team: str, season: int, tier: str):
@@ -462,8 +464,145 @@ def get_team_advanced_summary_stats(franchise: str, season: int, tier: str):
 
     return (message, message_2)
 
-# def get_team_match_history(franchise: str, season: int, tier: str):
 
+def get_team_match_history(franchise: str, season: int, tier: str, franchise_names: dict):
+    map_emojis = {
+        "de_ancient": ":leafy_green:",
+        "de_anubis": ":desert:",
+        "de_inferno": ":fire:",
+        "de_vertigo": ":construction_site:",
+        "de_dust2": ":sun:",
+        "de_mirage": ":city_sunset:",
+        "de_nuke": ":radioactive:"
+    }
+
+    franchise_name = franchise_names[franchise]
+
+    client = GraphqlClient(endpoint="https://core.csconfederation.com/graphql")
+
+    query = """
+        query myquery {
+            matches(season: %s, tier: "%s", franchise: "%s") {
+                away {
+                    name,
+                    franchise {
+                        prefix
+                    }
+                },
+                home {
+                    name,
+                    franchise {
+                        prefix
+                    }
+                },
+            scheduledDate,
+            location,
+            demoUrl,
+            stats {
+                awayScore,
+                homeScore,
+                mapName,
+                mapNumber,
+                winner {
+                    franchise {
+                        prefix
+                    }
+                }
+            },
+            matchDay {
+                number
+            }
+        }
+    } """ % (season, tier, franchise_name)
+
+    matches = client.execute(query=query)["data"]["matches"]
+
+    message = f"## {franchise} {tier} Match History\n"
+
+    for match in matches:
+        if 'P' in match['matchDay']['number']:
+            continue
+
+        if len(match['stats']) == 1:
+            if match['stats'][0]['winner'] is None or match['stats'][0]['winner']['franchise']['prefix'] == franchise:
+                message += ":green_square:\t"
+            else:
+                message += ":red_square:\t"
+
+            message += f"`{match['matchDay']['number']}: "
+            message += f"{' ' * (3 - len(match['away']['franchise']['prefix'])) + match['away']['franchise']['prefix']} "
+            message += f"{' ' * (2 - len(str(match['stats'][0]['awayScore']))) + str(match['stats'][0]['awayScore'])} - "
+            message += f"{str(match['stats'][0]['homeScore']) + ' ' * (2 - len(str(match['stats'][0]['homeScore'])))} "
+            message += f"{match['home']['franchise']['prefix'] + ' ' * (3 - len(match['home']['franchise']['prefix']))}`\t"
+
+            message += map_emojis[match['stats'][0]['mapName']] + " "
+            message += f"{match['stats'][0]['mapName'][3].upper() + match['stats'][0]['mapName'][4:]}\t"
+
+            # message += f"\t[Demo]({match['demoUrl']})"
+        else:
+            maps_won = 0
+            maps_lost = 0
+
+            maps = [None, None, None]
+
+            for m in match['stats']:
+                if m['winner'] is None:
+                    continue
+
+                if m['winner']['franchise']['prefix'] == franchise:
+                    maps_won += 1
+                else:
+                    maps_lost += 1
+
+                maps[m['mapNumber'] - 1] = ""
+
+                if m['winner'] is None or m['winner']['franchise']['prefix'] == franchise:
+                    maps[m['mapNumber'] - 1] += ":green_circle:\t"
+                else:
+                    maps[m['mapNumber'] - 1] += ":red_circle:\t"
+
+                maps[m['mapNumber'] - 1] += f"`     "
+
+                maps[m['mapNumber'] - 1] += f"{' ' * (3 - len(match['away']['franchise']['prefix'])) + match['away']['franchise']['prefix']} "
+                maps[m['mapNumber'] - 1] += f"{' ' * (2 - len(str(m['awayScore']))) + str(m['awayScore'])} - "
+                maps[m['mapNumber'] - 1] += f"{str(m['homeScore']) + ' ' * (2 - len(str(m['homeScore'])))} "
+                maps[m['mapNumber'] - 1] += f"{match['home']['franchise']['prefix'] + ' ' * (3 - len(match['home']['franchise']['prefix']))}`\t"
+
+                maps[m['mapNumber'] - 1] += map_emojis[m['mapName']] + " "
+                maps[m['mapNumber'] - 1] += f"{m['mapName'][3].upper() + m['mapName'][4:]}"
+
+            if maps_won > maps_lost:
+                message += ":green_square:\t"
+            else:
+                message += ":red_square:\t"
+
+            message += f"`{match['matchDay']['number']}: "
+
+            if match['away']['franchise']['prefix'] ==  franchise:
+                message += f"{' ' * (3 - len(match['away']['franchise']['prefix'])) + match['away']['franchise']['prefix']} "
+                message += f"{' ' * (2 - len(str(maps_won))) + str(maps_won)} - "
+                message += f"{str(maps_lost) + ' ' * (2 - len(str(maps_lost)))} "
+                message += f"{match['home']['franchise']['prefix'] + ' ' * (3 - len(match['home']['franchise']['prefix']))}`\t"
+            else:
+                message += f"{' ' * (3 - len(match['away']['franchise']['prefix'])) + match['away']['franchise']['prefix']} "
+                message += f"{' ' * (2 - len(str(maps_lost))) + str(maps_lost)} - "
+                message += f"{str(maps_won) + ' ' * (2 - len(str(maps_won)))} "
+                message += f"{match['home']['franchise']['prefix'] + ' ' * (3 - len(match['home']['franchise']['prefix']))}`\t"
+
+            for m in maps:
+                if m is None:
+                    continue
+
+                message += f"\n{m}"
+
+        # unix_time = time.mktime(datetime.datetime.fromisoformat(match['scheduledDate']).timetuple())
+        # message += f"<t:{int(unix_time) - 60 * 60 * 4}:R>\t"
+
+        message += "\n"
+
+    message += ""
+
+    return message
 
 
 if __name__ == "__main__":
@@ -483,7 +622,8 @@ if __name__ == "__main__":
     query = """
             query myquery {
                 franchises(active: true) {
-                    prefix
+                    prefix,
+                    name
                 }
             }
             """
@@ -491,9 +631,11 @@ if __name__ == "__main__":
     franchises = client.execute(query=query)["data"]["franchises"]
 
     franchise_choices = []
+    franchise_names = {}
 
     for f in franchises:
         franchise_choices.append(app_commands.Choice(name=f['prefix'], value=f['prefix']))
+        franchise_names[f['prefix']] = f['name']
 
     @bot.event
     async def on_ready():
@@ -522,20 +664,31 @@ if __name__ == "__main__":
         await interaction.followup.send(get_team_summary_stats(franchise, int(14), tier))
 
 
-    # @bot.tree.command(name="matches", description="Get team match history.")
-    # @app_commands.choices(franchise=franchise_choices)
-    # @app_commands.choices(tier=[
-    #     app_commands.Choice(name="Recruit", value="Recruit"),
-    #     app_commands.Choice(name="Prospect", value="Prospect"),
-    #     app_commands.Choice(name="Contender", value="Contender"),
-    #     app_commands.Choice(name="Challenger", value="Challenger"),
-    #     app_commands.Choice(name="Elite", value="Elite"),
-    #     app_commands.Choice(name="Premier", value="Premier")
-    # ])
-    # async def scout(interaction: discord.Interaction, franchise: str, tier: str):
-    #
-    #     await interaction.response.defer()
-    #     await interaction.followup.send(get_team_summary_stats(franchise, int(14), tier))
+    @bot.tree.command(name="matches", description="Get team match history.")
+    @app_commands.choices(franchise=franchise_choices)
+    @app_commands.choices(tier=[
+        app_commands.Choice(name="Recruit", value="Recruit"),
+        app_commands.Choice(name="Prospect", value="Prospect"),
+        app_commands.Choice(name="Contender", value="Contender"),
+        app_commands.Choice(name="Challenger", value="Challenger"),
+        app_commands.Choice(name="Elite", value="Elite"),
+        app_commands.Choice(name="Premier", value="Premier")
+    ])
+    @app_commands.choices(season=[
+        app_commands.Choice(name="15", value=15),
+        app_commands.Choice(name="14", value=14),
+        app_commands.Choice(name="13", value=13),
+        app_commands.Choice(name="12", value=12),
+        app_commands.Choice(name="11", value=11)
+    ])
+    async def matches(interaction: discord.Interaction, franchise: str, tier: str, season: int):
+        try:
+            await interaction.response.defer()
+            await interaction.followup.send(get_team_match_history(franchise, season, tier, franchise_names))
+        except:
+            await interaction.followup.send("Something went wrong :(")
+
+
 
     bot.run(token)
 
