@@ -63,8 +63,18 @@ def get_team_opponent_stats(team: str, season: int, tier: str):
 
         if match["teamStats"][1]["score"] > match["teamStats"][0]["score"]:
             win_loss_stats[match["teamStats"][1]["name"]]["wins"] += 1
+
+            if match["teamStats"][0]["score"] >= 10:
+                win_loss_stats[match["teamStats"][1]["name"]]["close"] += 1
+            else:
+                win_loss_stats[match["teamStats"][1]["name"]]["easy_wins"] += 1
         else:
             win_loss_stats[match["teamStats"][1]["name"]]["losses"] += 1
+
+            if match["teamStats"][1]["score"] >= 10:
+                win_loss_stats[match["teamStats"][1]["name"]]["close"] += 1
+            else:
+                win_loss_stats[match["teamStats"][1]["name"]]["hard_losses"] += 1
 
         # Add the opponent to the list of opponents for the current map
         if match["teamStats"][0]["name"] == team or match["teamStats"][1]["name"] == team:
@@ -517,13 +527,23 @@ def get_team_match_history(franchise: str, season: int, tier: str, franchise_nam
 
     matches = client.execute(query=query)["data"]["matches"]
 
-    message = f"## {franchise} {tier} Match History\n"
+    message = f"## {franchise} {tier} S{season} Match History\n"
+
+    upcoming = ""
 
     for match in matches:
         if 'P' in match['matchDay']['number']:
             continue
 
-        if len(match['stats']) == 1:
+        if len(match['stats']) == 0:
+            upcoming += f"`{' ' * (3 - len(match['away']['franchise']['prefix'])) + match['away']['franchise']['prefix']}"
+            upcoming += " vs "
+            upcoming += f"{match['home']['franchise']['prefix'] + ' ' * (3 - len(match['home']['franchise']['prefix']))}` "
+
+            unix_time = time.mktime(datetime.datetime.fromisoformat(match['scheduledDate']).timetuple())
+            upcoming += f"<t:{int(unix_time) - 60 * 60 * 4}:R>\n"
+
+        elif len(match['stats']) == 1:
             if match['stats'][0]['winner'] is None or match['stats'][0]['winner']['franchise']['prefix'] == franchise:
                 message += ":green_square:\t"
             else:
@@ -595,12 +615,11 @@ def get_team_match_history(franchise: str, season: int, tier: str, franchise_nam
 
                 message += f"\n{m}"
 
-        # unix_time = time.mktime(datetime.datetime.fromisoformat(match['scheduledDate']).timetuple())
-        # message += f"<t:{int(unix_time) - 60 * 60 * 4}:R>\t"
-
         message += "\n"
 
-    message += ""
+    if upcoming != "":
+        message += "## Upcoming:\n"
+        message += upcoming
 
     return message
 
@@ -658,10 +677,19 @@ if __name__ == "__main__":
         app_commands.Choice(name="Elite", value="Elite"),
         app_commands.Choice(name="Premier", value="Premier")
     ])
-    async def scout(interaction: discord.Interaction, franchise: str, tier: str):
-
-        await interaction.response.defer()
-        await interaction.followup.send(get_team_summary_stats(franchise, int(14), tier))
+    @app_commands.choices(season=[
+        app_commands.Choice(name="15", value=15),
+        app_commands.Choice(name="14", value=14),
+        app_commands.Choice(name="13", value=13),
+        app_commands.Choice(name="12", value=12),
+        app_commands.Choice(name="11", value=11)
+    ])
+    async def scout(interaction: discord.Interaction, franchise: str, tier: str, season: int):
+        try:
+            await interaction.response.defer()
+            await interaction.followup.send(get_team_summary_stats(franchise, int(season), tier))
+        except:
+            await interaction.followup.send("Something went wrong : (")
 
 
     @bot.tree.command(name="matches", description="Get team match history.")
@@ -686,7 +714,7 @@ if __name__ == "__main__":
             await interaction.response.defer()
             await interaction.followup.send(get_team_match_history(franchise, season, tier, franchise_names))
         except:
-            await interaction.followup.send("Something went wrong :(")
+            await interaction.followup.send("Something went wrong : (")
 
 
 
