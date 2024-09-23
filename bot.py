@@ -536,12 +536,13 @@ def get_team_match_history(franchise: str, season: int, tier: str, franchise_nam
             continue
 
         if len(match['stats']) == 0:
-            upcoming += f"`{' ' * (3 - len(match['away']['franchise']['prefix'])) + match['away']['franchise']['prefix']}"
+            upcoming += f"`{match['matchDay']['number']}: "
+            upcoming += f"{' ' * (3 - len(match['away']['franchise']['prefix'])) + match['away']['franchise']['prefix']}"
             upcoming += " vs "
             upcoming += f"{match['home']['franchise']['prefix'] + ' ' * (3 - len(match['home']['franchise']['prefix']))}` "
 
             unix_time = time.mktime(datetime.datetime.fromisoformat(match['scheduledDate']).timetuple())
-            upcoming += f"<t:{int(unix_time) - 60 * 60 * 4}:R>\n"
+            upcoming += f"<t:{int(unix_time) - 60 * 60 * 4}:D>\n"
 
         elif len(match['stats']) == 1:
             if match['stats'][0]['winner'] is None or match['stats'][0]['winner']['franchise']['prefix'] == franchise:
