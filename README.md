@@ -1,7 +1,4 @@
-# CS-AntiStrat
+Project which queries CSC's stats and core APIs, and uses a discord bot to send messages with nicely formatted team stats.
 
-## Auto Demo Fetcher
-Copy the `.env.example` file and rename it to `.env`
+<img width="1037" height="737" alt="image" src="https://github.com/user-attachments/assets/097d1c59-961d-4c51-bd8f-030e9fb250f4" />
 
-## Todo:
-- Add cover page to pdfs
